@@ -53,8 +53,8 @@ no account, cloud inbox, receiving daemon, telemetry, or API key.
 ## Install from source
 
 ```bash
-git clone https://github.com/mejohnc-ft/shot-pill.git
-cd shot-pill
+git clone https://github.com/mejohnc-ft/pill-shot.git
+cd pill-shot
 ./scripts/install.sh
 ```
 
