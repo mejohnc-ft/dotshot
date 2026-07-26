@@ -91,7 +91,12 @@ final class DestinationStore: ObservableObject {
             let host = destination.host.trimmingCharacters(in: .whitespacesAndNewlines)
             let path = destination.remotePath.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !id.isEmpty, !host.isEmpty, !path.isEmpty,
-                  !id.contains("\t"), !host.contains("\t"), !path.contains("\t") else { return nil }
+                  !id.contains("\t"), !host.contains("\t"), !path.contains("\t"),
+                  id.rangeOfCharacter(from: .newlines) == nil,
+                  host.rangeOfCharacter(from: .whitespacesAndNewlines) == nil,
+                  path.rangeOfCharacter(from: .newlines) == nil,
+                  !host.hasPrefix("-"),
+                  path == "~" || path.hasPrefix("~/") || path.hasPrefix("/") else { return nil }
             return Destination(id: id, host: host, remotePath: path)
         }
         guard cleaned.count == destinations.count,
@@ -797,15 +802,16 @@ struct PillView: View {
 }
 
 enum SetupStep: Int, CaseIterable, Identifiable {
-    case welcome, permissions, destinations, test, login, appearance, done
+    case welcome, permissions, connect, destinations, test, login, appearance, done
 
     var id: Int { rawValue }
     var title: String {
         switch self {
-        case .welcome: "Install & Launch"
+        case .welcome: "Why Shot Pill"
         case .permissions: "Permission"
+        case .connect: "Connect Devices"
         case .destinations: "Destinations"
-        case .test: "Test & Tutorial"
+        case .test: "First Capture"
         case .login: "Launch at Login"
         case .appearance: "Appearance"
         case .done: "Done"
@@ -815,6 +821,7 @@ enum SetupStep: Int, CaseIterable, Identifiable {
         switch self {
         case .welcome: "sparkles"
         case .permissions: "rectangle.inset.filled.and.person.filled"
+        case .connect: "key.horizontal"
         case .destinations: "network"
         case .test: "checkmark.circle"
         case .login: "power"
@@ -835,12 +842,22 @@ struct SetupView: View {
     @State private var screenPermission = CGPreflightScreenCaptureAccess()
     @State private var loginStatus = SMAppService.mainApp.status
     @State private var loginMessage = ""
+    @State private var sshSetupMessage = ""
+    @State private var sshRefreshToken = 0
     @AppStorage("shotpill.accentIndex") private var accentIndex = 0
     @AppStorage("shotpill.position") private var position = "bottomRight"
     @AppStorage("shotpill.displayName") private var displayName = ""
     @AppStorage("shotpill.inset") private var inset = 24.0
 
     private var accent: Color { PRESETS[min(max(accentIndex, 0), PRESETS.count - 1)] }
+    private var publicKeyURL: URL? {
+        _ = sshRefreshToken
+        let sshDirectory = URL(fileURLWithPath: NSHomeDirectory())
+            .appendingPathComponent(".ssh", isDirectory: true)
+        return ["id_ed25519.pub", "id_ecdsa.pub", "id_rsa.pub"]
+            .map { sshDirectory.appendingPathComponent($0) }
+            .first { FileManager.default.fileExists(atPath: $0.path) }
+    }
 
     init(initialStep: SetupStep, onFinish: @escaping () -> Void) {
         self.initialStep = initialStep
@@ -943,6 +960,8 @@ struct SetupView: View {
             welcomeStep
         case .permissions:
             permissionStep
+        case .connect:
+            connectStep
         case .destinations:
             destinationsStep
         case .test:
@@ -958,15 +977,25 @@ struct SetupView: View {
 
     private var welcomeStep: some View {
         VStack(alignment: .leading, spacing: 22) {
-            setupHeading("Welcome to Shot Pill", "Capture once, then send screenshots and recordings to another device over SSH.")
-            HStack(spacing: 14) {
-                completionCard("Installed", "Shot Pill.app is in your Applications folder.", "checkmark.seal.fill")
-                completionCard("Launched", "The small camera nub is already running.", "play.circle.fill")
+            setupHeading(
+                "Capture here. Let your agents use it there.",
+                "Shot Pill delivers visual context from this Mac to every machine in your coding fleet—without uploads, inboxes, or broken focus."
+            )
+            HStack(spacing: 12) {
+                flowCard("1", "Capture", "Take a screenshot or recording from any app.", "camera.viewfinder")
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(.tertiary)
+                flowCard("2", "Deliver", "Shot Pill names it and sends it over SSH.", "paperplane.fill")
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(.tertiary)
+                flowCard("3", "Use", "The remote path is copied, ready for your agent.", "terminal.fill")
             }
             callout(
-                "Before continuing",
-                "Make sure SSH—or Tailscale SSH—is working to each destination device. Shot Pill transfers files with the system scp command.",
-                "network"
+                "Private by design",
+                "Files travel through your existing SSH or Tailscale connection. There is no Shot Pill account, cloud inbox, receiving service, telemetry, or API key.",
+                "lock.shield.fill"
             )
         }
     }
@@ -1012,13 +1041,84 @@ struct SetupView: View {
         }
     }
 
+    private var connectStep: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            setupHeading(
+                "Connect this Mac to your other devices",
+                "Shot Pill uses normal SSH key authentication. You do not need an SSH alias, Tailscale, a server, or a Shot Pill account."
+            )
+
+            HStack(alignment: .top, spacing: 12) {
+                completionCard(
+                    "1. Enable SSH",
+                    "Mac: enable Settings → General → Sharing → Remote Login. Linux: enable the OpenSSH server.",
+                    "switch.2"
+                )
+                completionCard(
+                    "2. Prepare a key",
+                    publicKeyURL == nil
+                        ? "Create an Ed25519 key on this Mac. A public key identifies this Mac; your private key never leaves it."
+                        : "A public key is ready on this Mac: \(publicKeyURL?.lastPathComponent ?? "")",
+                    publicKeyURL == nil ? "key" : "checkmark.seal.fill"
+                )
+                completionCard(
+                    "3. Authorize it",
+                    "Install this Mac’s public key once. Shot Pill can then transfer without password prompts.",
+                    "person.badge.key.fill"
+                )
+            }
+
+            HStack(spacing: 10) {
+                if publicKeyURL == nil {
+                    Button("Copy Key Creation Command") {
+                        copyToClipboard(
+                            "ssh-keygen -t ed25519 -C \"shot-pill@\(Host.current().localizedName ?? "mac")\"",
+                            confirmation: "Key creation command copied"
+                        )
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(accent)
+                } else {
+                    Button("Copy Public Key") {
+                        copyPublicKey()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(accent)
+                }
+                Button("Open Terminal") { openTerminal() }
+                Button("Refresh") {
+                    sshRefreshToken += 1
+                    sshSetupMessage = publicKeyURL == nil ? "No standard public key found yet" : "Public key detected"
+                }
+                Text(sshSetupMessage)
+                    .font(.system(size: 11.5, weight: .medium))
+                    .foregroundStyle(sshSetupMessage.contains("couldn’t") ? Color.orange : Color.green)
+            }
+
+            callout(
+                "No alias required",
+                "On the next screen, enter a direct address such as john@mac-studio.local, john@100.64.0.10, or john@mac-studio. An existing ~/.ssh/config alias works too.",
+                "network"
+            )
+            Text("Tailscale: use the destination’s MagicDNS name or 100.x address. Both devices must share a tailnet, with regular SSH or Tailscale SSH enabled on the destination.")
+                .font(.system(size: 11.5))
+                .foregroundStyle(.secondary)
+            Text("Next, enter the address and press Test. If the key is rejected, Shot Pill offers an authorization command that asks for the destination password once.")
+                .font(.system(size: 11.5))
+                .foregroundStyle(.secondary)
+        }
+    }
+
     private var destinationsStep: some View {
         VStack(alignment: .leading, spacing: 18) {
-            setupHeading("Configure SSH destinations", "Give each device a short name, its SSH host or alias, and the folder that should receive captures.")
+            setupHeading(
+                "Choose where captures should land",
+                "Give each device a short name, its SSH address, and a receiving folder. A direct username@hostname works—aliases are optional."
+            )
             VStack(spacing: 10) {
                 HStack {
                     Text("NAME").frame(width: 90, alignment: .leading)
-                    Text("SSH HOST / ALIAS").frame(maxWidth: .infinity, alignment: .leading)
+                    Text("SSH ADDRESS OR ALIAS").frame(maxWidth: .infinity, alignment: .leading)
                     Text("DESTINATION FOLDER").frame(maxWidth: .infinity, alignment: .leading)
                     Color.clear.frame(width: 76)
                 }
@@ -1030,7 +1130,7 @@ struct SetupView: View {
                     HStack(spacing: 8) {
                         TextField("work", text: $draftDestinations[index].id)
                             .frame(width: 90)
-                        TextField("user@device or ~/.ssh/config alias", text: $draftDestinations[index].host)
+                        TextField("john@mac-studio.local", text: $draftDestinations[index].host)
                         TextField("~/inbound", text: $draftDestinations[index].remotePath)
                         Button {
                             testDestination(at: index)
@@ -1054,15 +1154,26 @@ struct SetupView: View {
                     }
                     .textFieldStyle(.roundedBorder)
                     if let status = testStatus[index] {
-                        Text(status)
-                            .font(.system(size: 10.5, weight: .medium))
-                            .foregroundStyle(status.hasPrefix("Ready") ? Color.green : (status == "Testing…" ? Color.secondary : Color.orange))
-                            .frame(maxWidth: .infinity, alignment: .trailing)
+                        HStack {
+                            if !status.hasPrefix("Ready"), status != "Testing…", publicKeyURL != nil,
+                               draftDestinations.indices.contains(index), !draftDestinations[index].host.isEmpty {
+                                Button("Copy key authorization command") {
+                                    copyAuthorizationCommand(for: draftDestinations[index])
+                                }
+                                .buttonStyle(.link)
+                                .font(.system(size: 10.5))
+                            }
+                            Spacer()
+                            Text(status)
+                                .font(.system(size: 10.5, weight: .medium))
+                                .foregroundStyle(status.hasPrefix("Ready") ? Color.green : (status == "Testing…" ? Color.secondary : Color.orange))
+                        }
                     }
                 }
             }
 
             HStack {
+                Button("SSH setup help") { step = .connect }
                 Button {
                     draftDestinations.append(Destination(id: "device\(draftDestinations.count + 1)", host: "", remotePath: "~/inbound"))
                 } label: {
@@ -1079,21 +1190,21 @@ struct SetupView: View {
                     .tint(accent)
             }
             callout(
-                "What Test does",
-                "It connects non-interactively, creates the destination folder if needed, and verifies that it is writable. SSH keys should already be configured.",
-                "key.horizontal"
+                "Test before continuing",
+                "Test checks the host, key authentication, and folder separately. It creates the folder when allowed and converts ~/inbound into an absolute path your agent can use.",
+                "checkmark.shield.fill"
             )
         }
     }
 
     private var testStep: some View {
         VStack(alignment: .leading, spacing: 22) {
-            setupHeading("Take a guided test shot", "Use the same path as a real capture: select a region, auto-name it, transfer it, and copy the remote path.")
+            setupHeading("Complete your first capture", "This is the whole Shot Pill loop: capture here, deliver there, then give the copied path to your agent.")
             VStack(alignment: .leading, spacing: 14) {
                 tutorialRow("1", "Press ⌃⌥⌘S from any app—or click the button below.")
                 tutorialRow("2", "Drag around a harmless test area, then release.")
-                tutorialRow("3", "Wait for the “Sent” notification; the remote path lands on your clipboard.")
-                tutorialRow("4", "Paste that path into an agent or terminal on the destination device.")
+                tutorialRow("3", "Wait for “Sent.” Shot Pill names the image and copies its remote path.")
+                tutorialRow("4", "In your agent, paste the path with a request such as “Review this screenshot.”")
             }
             HStack {
                 Button {
@@ -1108,6 +1219,11 @@ struct SetupView: View {
                     NSWorkspace.shared.open(URL(fileURLWithPath: SHOTS))
                 }
             }
+            callout(
+                "The payoff",
+                "No save dialog, manual filename, upload, or hunt for the file. Your agent gets a path it can read on the machine where it is already working.",
+                "wand.and.stars"
+            )
             callout("Recording shortcut", "Press ⌃⌥⌘V. Choose a full display or Selected Portion, then stop with ⌘⌃Esc.", "video.fill")
         }
     }
@@ -1203,7 +1319,7 @@ struct SetupView: View {
 
     private var doneStep: some View {
         VStack(alignment: .leading, spacing: 22) {
-            setupHeading("Shot Pill is ready", "The nub can stay out of the way until you hover, use a shortcut, or drag a file onto it.")
+            setupHeading("Your visual context pipeline is ready", "The camera nub stays out of the way until you hover, use a shortcut, or drag a file onto it.")
             VStack(alignment: .leading, spacing: 14) {
                 summaryRow("Screenshot", "⌃⌥⌘S", "camera.fill")
                 summaryRow("Screen recording", "⌃⌥⌘V", "video.fill")
@@ -1237,6 +1353,30 @@ struct SetupView: View {
             Text(title).font(.system(size: 25, weight: .bold))
             Text(subtitle).font(.system(size: 13.5)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    private func flowCard(_ number: String, _ title: String, _ subtitle: String, _ icon: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(number)
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .foregroundStyle(idealText(on: accent))
+                    .frame(width: 22, height: 22)
+                    .background(accent, in: Circle())
+                Spacer()
+                Image(systemName: icon)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(accent)
+            }
+            Text(title).font(.system(size: 14.5, weight: .semibold))
+            Text(subtitle)
+                .font(.system(size: 11.5))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(15)
+        .frame(maxWidth: .infinity, minHeight: 132, alignment: .topLeading)
+        .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 14))
     }
 
     private func completionCard(_ title: String, _ subtitle: String, _ icon: String) -> some View {
@@ -1308,6 +1448,11 @@ struct SetupView: View {
     private func advance() {
         if step == .destinations {
             guard saveDestinations() else { return }
+            if !UserDefaults.standard.bool(forKey: "shotpill.onboardingComplete"),
+               !testStatus.values.contains(where: { $0.hasPrefix("Ready") }) {
+                saveMessage = "Test at least one destination to complete first-time setup"
+                return
+            }
         }
         if step == .done {
             UserDefaults.standard.set(true, forKey: "shotpill.onboardingComplete")
@@ -1321,7 +1466,9 @@ struct SetupView: View {
     @discardableResult
     private func saveDestinations() -> Bool {
         let saved = DestinationStore.shared.save(draftDestinations)
-        saveMessage = saved ? "Saved" : "Complete every field and use unique names"
+        saveMessage = saved
+            ? "Saved"
+            : "Use unique names, a host without spaces, and an absolute or ~/ folder"
         if saved {
             let current = selectedDestination()
             UserDefaults.standard.set(current, forKey: "shotpill.dest")
@@ -1332,34 +1479,156 @@ struct SetupView: View {
     private func testDestination(at index: Int) {
         guard draftDestinations.indices.contains(index) else { return }
         let destination = draftDestinations[index]
+        guard !destination.host.isEmpty,
+              !destination.host.hasPrefix("-"),
+              destination.host.rangeOfCharacter(from: .whitespacesAndNewlines) == nil else {
+            testStatus[index] = "Invalid address — use username@hostname or an SSH alias"
+            return
+        }
+        guard destination.remotePath == "~"
+                || destination.remotePath.hasPrefix("~/")
+                || destination.remotePath.hasPrefix("/") else {
+            testStatus[index] = "Invalid folder — use an absolute path or ~/folder"
+            return
+        }
         testStatus[index] = "Testing…"
-        let quotedPath = "'" + destination.remotePath.replacingOccurrences(of: "'", with: "'\\''") + "'"
+        let targetExpression = remotePathExpression(destination.remotePath)
+        let remoteCommand = """
+        target=\(targetExpression)
+        mkdir -p "$target" || exit 20
+        test -d "$target" || exit 21
+        test -w "$target" || exit 22
+        cd "$target" && pwd -P
+        """
 
         DispatchQueue.global(qos: .userInitiated).async {
             let process = Process()
-            let errors = Pipe()
+            let output = Pipe()
             process.executableURL = URL(fileURLWithPath: "/usr/bin/ssh")
             process.arguments = [
                 "-o", "BatchMode=yes",
-                "-o", "ConnectTimeout=6",
+                "-o", "NumberOfPasswordPrompts=0",
+                "-o", "ConnectTimeout=7",
                 destination.host,
-                "mkdir -p \(quotedPath) && test -d \(quotedPath) && test -w \(quotedPath)"
+                remoteCommand
             ]
-            process.standardError = errors
+            process.standardOutput = output
+            process.standardError = output
             do {
                 try process.run()
                 process.waitUntilExit()
-                let data = errors.fileHandleForReading.readDataToEndOfFile()
+                let data = output.fileHandleForReading.readDataToEndOfFile()
                 let detail = String(data: data, encoding: .utf8)?
                     .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                let resolvedPath = detail
+                    .split(whereSeparator: \.isNewline)
+                    .map(String.init)
+                    .last(where: { $0.hasPrefix("/") })
+                let result = destinationTestMessage(
+                    status: process.terminationStatus,
+                    detail: detail,
+                    resolvedPath: resolvedPath
+                )
                 DispatchQueue.main.async {
-                    testStatus[index] = process.terminationStatus == 0
-                        ? "Ready — connected and folder is writable"
-                        : "Failed — \(detail.isEmpty ? "check SSH keys, host, and path" : detail)"
+                    guard draftDestinations.indices.contains(index),
+                          draftDestinations[index].host == destination.host else { return }
+                    if process.terminationStatus == 0, let resolvedPath {
+                        draftDestinations[index].remotePath = resolvedPath
+                    }
+                    testStatus[index] = result
                 }
             } catch {
                 DispatchQueue.main.async { testStatus[index] = "Failed — \(error.localizedDescription)" }
             }
+        }
+    }
+
+    private func destinationTestMessage(status: Int32, detail: String, resolvedPath: String?) -> String {
+        if status == 0 {
+            return "Ready — connected; \(resolvedPath ?? "folder") is writable"
+        }
+        switch status {
+        case 20:
+            return "Folder blocked — it could not be created with this account"
+        case 21:
+            return "Folder invalid — the path exists but is not a directory"
+        case 22:
+            return "Folder read-only — choose a path this account can write to"
+        default:
+            break
+        }
+
+        let message = detail.lowercased()
+        if message.contains("could not resolve hostname")
+            || message.contains("nodename nor servname provided") {
+            return "Host not found — check the device name, IP address, or SSH alias"
+        }
+        if message.contains("operation timed out") || message.contains("connection timed out") {
+            return "Timed out — check that the device is online and reachable"
+        }
+        if message.contains("connection refused") {
+            return "SSH is off — enable Remote Login or the OpenSSH server"
+        }
+        if message.contains("permission denied") || message.contains("no supported authentication methods") {
+            return "Key rejected — authorize this Mac’s public key on the destination"
+        }
+        if message.contains("host key verification failed") {
+            return "Identity check needed — connect once with ssh in Terminal"
+        }
+        if message.contains("remote host identification has changed") {
+            return "Host identity changed — review the warning in Terminal before continuing"
+        }
+        if message.contains("no route to host") || message.contains("network is unreachable") {
+            return "Device unreachable — check its network or Tailscale connection"
+        }
+        return "Connection failed — try ssh \(detail.isEmpty ? "in Terminal for details" : "to this device in Terminal")"
+    }
+
+    private func remotePathExpression(_ path: String) -> String {
+        if path == "~" { return "\"$HOME\"" }
+        if path.hasPrefix("~/") {
+            return "\"$HOME\"/" + shellSingleQuote(String(path.dropFirst(2)))
+        }
+        return shellSingleQuote(path)
+    }
+
+    private func shellSingleQuote(_ value: String) -> String {
+        "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+
+    private func copyPublicKey() {
+        guard let publicKeyURL,
+              let key = try? String(contentsOf: publicKeyURL, encoding: .utf8) else {
+            sshSetupMessage = "Public key couldn’t be read"
+            return
+        }
+        copyToClipboard(key.trimmingCharacters(in: .whitespacesAndNewlines), confirmation: "Public key copied")
+    }
+
+    private func copyAuthorizationCommand(for destination: Destination) {
+        guard let publicKeyURL else {
+            sshSetupMessage = "Create an SSH key first"
+            step = .connect
+            return
+        }
+        let command = "cat \(shellSingleQuote(publicKeyURL.path)) | ssh \(shellSingleQuote(destination.host)) 'umask 077; mkdir -p ~/.ssh; cat >> ~/.ssh/authorized_keys'"
+        copyToClipboard(command, confirmation: "Authorization command copied—run it in Terminal")
+    }
+
+    private func copyToClipboard(_ value: String, confirmation: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(value, forType: .string)
+        sshSetupMessage = confirmation
+    }
+
+    private func openTerminal() {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        process.arguments = ["-a", "Terminal"]
+        do {
+            try process.run()
+        } catch {
+            sshSetupMessage = "Terminal couldn’t be opened"
         }
     }
 

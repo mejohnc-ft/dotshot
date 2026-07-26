@@ -1,8 +1,36 @@
 # Shot Pill
 
-Shot Pill is a tiny macOS capture HUD that sends screenshots, screen recordings, and dropped files to your other devices over SSH. It is designed for people who work across a small fleet—Macs, Linux machines, a NAS, or anything reachable through normal SSH or Tailscale SSH.
+**Capture here. Let your agents use it there.**
 
-When idle it occupies a 42 px camera nub. Hover to reveal capture controls, destinations, accent colors, and recent captures.
+Shot Pill is visual-context delivery for agentic coding fleets. Capture a
+screenshot or recording on your Mac, send it directly to any SSH-connected
+machine, and get the remote path on your clipboard—ready for Codex, Claude Code,
+or a terminal agent.
+
+```text
+⌃⌥⌘S → select an area → image is named and delivered → remote path is copied
+```
+
+No save dialog. No manual filename. No upload. No hunt for the file on the
+machine where your agent is working.
+
+When idle, Shot Pill is a 42 px camera nub in the corner. Hover to reveal
+capture controls, destinations, accent colors, and recent captures.
+
+![Shot Pill onboarding explains the capture, delivery, and agent workflow](docs/images/onboarding-welcome.png)
+
+## Why Shot Pill
+
+If you code across a laptop, desktops, build machines, AI workstations, or a
+NAS, the screenshot is often on the wrong computer. Shot Pill turns visual
+context into a path that an agent can read immediately:
+
+```text
+Review the layout issue in /home/john/inbound/settings-panel-20260726.png
+```
+
+Files travel through your existing SSH or Tailscale connection. Shot Pill has
+no account, cloud inbox, receiving daemon, telemetry, or API key.
 
 ## Highlights
 
@@ -19,7 +47,7 @@ When idle it occupies a 42 px camera nub. Hover to reveal capture controls, dest
 
 - macOS 13 or newer
 - Apple Command Line Tools (`xcode-select --install`)
-- SSH key access to each destination
+- A Mac or Linux destination reachable over SSH
 - Optional: Tailscale for private device addressing
 
 ## Install from source
@@ -32,13 +60,14 @@ cd shot-pill
 
 The installer builds `~/Applications/Shot Pill.app` and opens guided setup:
 
-1. Install and launch confirmation
+1. See the capture → deliver → use workflow
 2. Screen Recording permission
-3. SSH destinations and writable remote folders
-4. Guided screenshot/recording test
-5. Launch at Login approval
-6. Accent, target display, corner, and inset
-7. Final shortcut/privacy recap
+3. Connect destination devices, including beginner SSH guidance
+4. Configure and test SSH destinations and writable remote folders
+5. Complete a real first capture
+6. Approve Launch at Login
+7. Choose accent, target display, corner, and inset
+8. Review shortcuts and the privacy boundary
 
 Setup can be reopened from the gear on the expanded pill or with:
 
@@ -48,26 +77,28 @@ open -b com.johnc.shotpill 'shotpill://settings'
 
 ## Configure destination devices
 
-SSH keys should work without a password prompt:
+You do **not** need an SSH alias. Shot Pill accepts:
 
-```bash
-ssh my-device
-```
+- `username@hostname.local` on a local network
+- `username@100.x.y.z` using a Tailscale IP
+- `username@device-name` using Tailscale MagicDNS
+- An existing alias from `~/.ssh/config`
 
-On the destination, choose or create a receiving folder:
+The guided setup detects an existing public key, explains how to create or
+authorize one, and diagnoses host, authentication, and folder failures
+separately. Start with the complete [SSH setup guide](docs/SSH_SETUP.md) if SSH
+key authentication is new to you.
 
-```bash
-mkdir -p ~/inbound
-chmod 700 ~/inbound
-```
+Shot Pill never stores SSH passwords or private keys. Its Test button connects
+without password prompts, creates the destination folder when allowed, verifies
+that it is writable, and resolves `~/inbound` into an absolute path your agent
+can use.
 
 During setup, enter:
 
 - **Name:** a short label such as `work`, `nas`, or `ai`
-- **SSH host / alias:** `user@host`, a Tailscale hostname, or an entry from `~/.ssh/config`
+- **SSH address or alias:** normally `username@device`
 - **Destination folder:** an absolute path or `~/inbound`
-
-The Test button connects in batch mode, creates the folder when needed, and verifies it is writable.
 
 Destination configuration is stored locally at:
 

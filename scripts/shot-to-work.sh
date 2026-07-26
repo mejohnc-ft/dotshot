@@ -49,7 +49,9 @@ resolve_destination() {
   line="$(awk -F '\t' -v wanted="$DEST_HOST" '!/^#/ && $1 == wanted { print; exit }' "$CONFIG_FILE" 2>/dev/null)"
   [ -n "$line" ] || return 1
   IFS=$'\t' read -r DEST_NAME DEST_SSH DEST_DIR <<< "$line"
-  [ -n "$DEST_NAME" ] && [ -n "$DEST_SSH" ] && [ -n "$DEST_DIR" ]
+  [ -n "$DEST_NAME" ] && [ -n "$DEST_SSH" ] && [ -n "$DEST_DIR" ] || return 1
+  [[ "$DEST_SSH" != -* && "$DEST_SSH" != *[$' \t\r\n']* ]] || return 1
+  [[ "$DEST_DIR" = "~" || "$DEST_DIR" = "~/"* || "$DEST_DIR" = /* ]] || return 1
 }
 
 slugify() {

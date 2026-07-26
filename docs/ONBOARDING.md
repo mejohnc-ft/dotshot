@@ -14,6 +14,8 @@ This is the complete first-run contract for Shot Pill.
 - Start the app as a menu-bar accessory.
 - Register the `shotpill://` URL scheme.
 - Open onboarding automatically until setup is completed.
+- Explain the capture → SSH delivery → copied agent path workflow before asking
+  the user to configure infrastructure.
 
 ## 3. Screen Recording permission
 
@@ -21,7 +23,17 @@ This is the complete first-run contract for Shot Pill.
 - Link directly to Privacy & Security settings.
 - Explain that a relaunch may be required.
 
-## 4. SSH destinations
+## 4. Connect destination devices
+
+- Explain how to enable Remote Login on macOS or OpenSSH on Linux.
+- Detect whether this Mac has a standard SSH public key.
+- Offer copyable key-generation, public-key, and authorization commands.
+- Make clear that a direct `username@device` address works and aliases are
+  optional.
+- Distinguish ordinary SSH over Tailscale from Tailscale SSH.
+- Never read, copy, or store a private key.
+
+## 5. SSH destinations
 
 For every destination collect:
 
@@ -29,31 +41,36 @@ For every destination collect:
 - SSH hostname, `user@host`, Tailscale name, or SSH config alias
 - Absolute or home-relative receiving folder
 
-Test with non-interactive SSH. Create the folder and verify it is writable. Never store SSH passwords or private keys.
+Test with non-interactive SSH. Diagnose host lookup, reachability,
+authentication, host identity, and folder permissions separately. Create the
+folder when allowed, verify it is writable, and resolve a `~/` path to the
+absolute path an agent can use.
 
-## 5. Test and tutorial
+## 6. First capture
 
 - Run a real region screenshot.
 - Confirm the sent notification.
 - Confirm the remote path reaches the clipboard.
+- Show a concrete agent prompt using the copied path.
+- Explain the time saved: no save dialog, manual naming, upload, or file hunt.
 - Explain recording selection and `⌘⌃Esc` to stop.
 - Explain local fallback when transfer fails.
 
-## 6. Launch at Login
+## 7. Launch at Login
 
 - Register the main app with `SMAppService`.
 - Surface `requiresApproval`.
 - Link to System Settings → General → Login Items.
 - Keep this opt-in and reversible.
 
-## 7. Appearance and position
+## 8. Appearance and position
 
 - Accent color
 - Target display
 - Corner
 - Edge inset
 
-## 8. Done
+## 9. Done
 
 - Recap global shortcuts and automation URLs.
 - State where local captures, logs, and destination configuration live.
