@@ -1,0 +1,3 @@
+# name	ssh-host-or-alias	remote-folder
+work	work-mac	~/inbound
+nas	admin@nas.example	/srv/inbound

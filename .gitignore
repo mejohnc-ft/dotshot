@@ -1,0 +1,9 @@
+.DS_Store
+dist/
+build/
+*.zip
+*.dmg
+*.xcarchive
+*.p12
+*.cer
+*.key
