@@ -69,8 +69,9 @@ codesign --verify --deep --strict "$APP"
 
 echo "Built and signed: $APP"
 if [ "$LAUNCH" -eq 1 ]; then
-  running_pid="$(pgrep -f "$APP/Contents/MacOS/Shot Pill" | head -1 || true)"
-  [ -z "$running_pid" ] || kill "$running_pid" 2>/dev/null || true
+  while IFS= read -r running_pid; do
+    [ -z "$running_pid" ] || kill "$running_pid" 2>/dev/null || true
+  done < <(pgrep -f "$APP/Contents/MacOS/Shot Pill" || true)
   sleep 0.3
   open "$APP"
   echo "Launched Shot Pill."
