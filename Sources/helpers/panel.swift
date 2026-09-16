@@ -1,4 +1,4 @@
-// panel.swift — native SwiftUI panel for the capture flow, with a recent-shots gallery.
+// panel.swift — small native prompt used by dotshot-capture.sh, with a recent-captures gallery.
 // Usage: swift panel.swift "<title>" "<message>" <showField:0|1> "<Btn1,Btn2,...>" "<galleryDir|-> "
 // Prints: "<clicked-button-lowercased>\t<field-text>"   (Esc / close → "cancel\t")
 // Clicking a gallery thumbnail copies that file's name to the clipboard (does not dismiss).
@@ -7,7 +7,7 @@ import AppKit
 import QuickLookThumbnailing
 
 let args = CommandLine.arguments
-let pTitle    = args.count > 1 ? args[1] : "Shot → Work"
+let pTitle    = args.count > 1 ? args[1] : "dotshot"
 let pMessage  = args.count > 2 ? args[2] : ""
 let pShowField = (args.count > 3 ? args[3] : "0") == "1"
 let pButtons  = (args.count > 4 ? args[4] : "OK").split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) }
