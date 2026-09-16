@@ -1,18 +1,20 @@
 # Onboarding checklist
 
-This is the complete first-run contract for Shot Pill.
+This is the first-run contract for dotshot: what the app must do the first time someone opens it.
+User-facing setup instructions live in [INSTALL.md](INSTALL.md) and [SSH_SETUP.md](SSH_SETUP.md).
 
 ## 1. Install
 
-- Confirm macOS 13 or newer.
-- Confirm Apple Command Line Tools are available.
-- Build into `~/Applications/Shot Pill.app`.
+- Confirm macOS 14 or newer (arm64 or x86_64).
+- Release: drag `dotshot.app` from the DMG to Applications.
+- Source: build into `~/Applications/dotshot.app` with Apple Command Line Tools.
 - Sign every bundled executable with the same identity.
 
 ## 2. Launch
 
 - Start the app as a menu-bar accessory.
-- Register the `shotpill://` URL scheme.
+- Register the `dotshot://` URL scheme.
+- Import Shot Pill destinations and preferences once, and quit a running Shot Pill.
 - Open onboarding automatically until setup is completed.
 - Explain the capture → SSH delivery → copied agent path workflow before asking
   the user to configure infrastructure.
@@ -75,16 +77,16 @@ absolute path an agent can use.
 - Recap global shortcuts and automation URLs.
 - State where local captures, logs, and destination configuration live.
 - State the privacy boundary.
-- Keep setup available from the gear and `shotpill://settings`.
+- Keep setup available from the gear and `dotshot://settings`.
 
-## Additional release requirements
+## Release requirements
 
-The onboarding flow is not the whole distribution story. Public binary releases should also have:
+Onboarding is not the whole distribution story. Every public release also needs:
 
-- A unique app icon and version number
-- Developer ID signing and Apple notarization
-- Checksums for downloadable artifacts
-- A privacy/security statement
-- Uninstall and reset instructions
-- A documented update strategy
-- CI compile validation
+- A version number in `Resources/Info.plist` matching the Git tag
+- Developer ID signing and Apple notarization (or clearly documented Gatekeeper steps when unavailable)
+- SHA-256 checksums for downloadable artifacts
+- A privacy/security statement ([SECURITY.md](../SECURITY.md))
+- Uninstall and reset instructions ([INSTALL.md](INSTALL.md#uninstall))
+- A documented update strategy ([INSTALL.md](INSTALL.md#update))
+- Passing CI and the manual checklist in [QA.md](QA.md)

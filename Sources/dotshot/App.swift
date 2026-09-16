@@ -1762,6 +1762,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         pillWindow = window
         window.makeKeyAndOrderFront(nil)
 
+        // Displays come and go (docks, sleep, clamshell); keep the pill on a visible screen.
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            if let size = pillWindow?.frame.size { resizePill(size) }
+        }
+
         if let step = DEMO.openSetupStep {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 SetupController.shared.present(initialStep: SetupStep.named(step) ?? .welcome)
