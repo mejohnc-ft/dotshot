@@ -13,12 +13,16 @@ let PATHS = Paths()
 struct DemoOptions {
     let capturable: Bool       // DOTSHOT_CAPTURABLE=1 lets screencapture see the pill
     let pinnedState: String?   // DOTSHOT_DEMO_STATE=collapsed|expanded|drop freezes the pill
+    let openSetupStep: String? // DOTSHOT_DEMO_SETUP=<step> opens setup at that step
+    let openPicker: Bool       // DOTSHOT_DEMO_PICKER=1 opens the recording picker
     let suppressSetup: Bool    // DOTSHOT_NO_AUTO_SETUP=1 skips the automatic first-run window
 
     init(_ environment: [String: String] = ProcessInfo.processInfo.environment) {
         capturable = environment["DOTSHOT_CAPTURABLE"] == "1"
         pinnedState = environment["DOTSHOT_DEMO_STATE"]
         suppressSetup = environment["DOTSHOT_NO_AUTO_SETUP"] == "1"
+        openSetupStep = environment["DOTSHOT_DEMO_SETUP"]
+        openPicker = environment["DOTSHOT_DEMO_PICKER"] == "1"
     }
 }
 let DEMO = DemoOptions()
@@ -591,9 +595,35 @@ struct BigButton: View {
             }
             .frame(maxWidth: .infinity).padding(.vertical, 11)
         }
-        .buttonStyle(.borderedProminent)
-        .tint(filled ? color : Color(nsColor: .controlColor))
-        .foregroundStyle(filled ? idealText(on: color) : Color.primary)
+        .buttonStyle(PillButtonStyle(fill: filled ? color : Color.primary.opacity(0.10),
+                                     text: filled ? idealText(on: color) : Color.primary))
+    }
+}
+
+/// Explicit colors: the pill is a non-activating panel, so system prominent buttons would render
+/// in their inactive gray instead of the accent.
+struct PillButtonStyle: ButtonStyle {
+    let fill: Color
+    let text: Color
+
+    func makeBody(configuration: Configuration) -> some View {
+        StyledLabel(configuration: configuration, fill: fill, text: text)
+    }
+
+    private struct StyledLabel: View {
+        let configuration: ButtonStyleConfiguration
+        let fill: Color
+        let text: Color
+        @Environment(\.isEnabled) private var isEnabled
+
+        var body: some View {
+            configuration.label
+                .foregroundStyle(text)
+                .background(RoundedRectangle(cornerRadius: 10).fill(fill))
+                .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(.white.opacity(0.10)))
+                .contentShape(RoundedRectangle(cornerRadius: 10))
+                .opacity(isEnabled ? (configuration.isPressed ? 0.78 : 1) : 0.45)
+        }
     }
 }
 
@@ -648,12 +678,10 @@ struct PillView: View {
 
     // Map the drop point to a quadrant → host, then ship each dropped file there.
     private func handleDrop(_ providers: [NSItemProvider], at loc: CGPoint) -> Bool {
-        let col = loc.x < QUADRANT.width / 2 ? 0 : 1
-        let row = loc.y < QUADRANT.height / 2 ? 0 : 1
-        let dropDestinations = Array(destinations.items.prefix(4))
-        let index = row * 2 + col
-        guard index < dropDestinations.count else { return false }
-        let host = dropDestinations[index].id
+        guard let index = DropGrid.tileIndex(at: loc, in: QUADRANT, count: destinations.items.count) else {
+            return false
+        }
+        let host = destinations.items[index].id
         for p in providers {
             _ = p.loadObject(ofClass: URL.self) { url, _ in
                 if let u = url { sendFile(u.path, to: host) }
@@ -664,9 +692,23 @@ struct PillView: View {
     }
 
     var quadrant: some View {
-        LazyVGrid(columns: [GridItem(.flexible(), spacing: 6), GridItem(.flexible())], spacing: 6) {
-            ForEach(Array(destinations.items.prefix(4).enumerated()), id: \.element.id) { index, destination in
-                tile(destination, colorIndex: index)
+        let tiles = Array(destinations.items.prefix(DropGrid.maxTiles).enumerated())
+        let columns = DropGrid.columns(for: tiles.count)
+        return VStack(spacing: 6) {
+            if tiles.isEmpty {
+                Text("Add a destination in setup").font(.system(size: 13, weight: .semibold)).foregroundStyle(.secondary)
+            }
+            ForEach(0..<DropGrid.rows(for: tiles.count), id: \.self) { row in
+                HStack(spacing: 6) {
+                    ForEach(0..<columns, id: \.self) { column in
+                        let index = row * columns + column
+                        if index < tiles.count {
+                            tile(tiles[index].element, colorIndex: index)
+                        } else {
+                            Color.clear.frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
+                    }
+                }
             }
         }
         .padding(10)
@@ -802,7 +844,7 @@ enum SetupStep: Int, CaseIterable, Identifiable {
         switch self {
         case .welcome: "Why dotshot"
         case .permissions: "Permission"
-        case .connect: "Connect Devices"
+        case .connect: "SSH Access"
         case .destinations: "Destinations"
         case .test: "First Capture"
         case .login: "Launch at Login"
@@ -943,7 +985,7 @@ struct SetupView: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(24)
-        .frame(width: 210)
+        .frame(width: 236)
         .background(Color.black.opacity(0.10))
     }
 
@@ -1284,7 +1326,8 @@ struct SetupView: View {
                         }
                     }
                     .labelsHidden()
-                    .frame(width: 230)
+                    .fixedSize()
+                    .frame(width: 230, alignment: .leading)
                 }
                 VStack(alignment: .leading, spacing: 10) {
                     Text("CORNER").font(.system(size: 10, weight: .bold)).tracking(0.8).foregroundStyle(.secondary)
@@ -1303,6 +1346,7 @@ struct SetupView: View {
                     Text("\(Int(inset)) px").font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
                 }
                 Slider(value: $inset, in: 0...48, step: 2)
+                    .tint(accent)
             }
             .onChange(of: inset) { _, _ in repositionPill() }
             .onChange(of: displayName) { _, _ in repositionPill() }
@@ -1395,6 +1439,7 @@ struct SetupView: View {
             }
         }
         .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
     }
 
@@ -1717,7 +1762,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         pillWindow = window
         window.makeKeyAndOrderFront(nil)
 
-        if !DEMO.suppressSetup,
+        if let step = DEMO.openSetupStep {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                SetupController.shared.present(initialStep: SetupStep.named(step) ?? .welcome)
+            }
+        } else if DEMO.openPicker {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { chooseRecordingSource() }
+        } else if !DEMO.suppressSetup,
            !UserDefaults.standard.bool(forKey: "dotshot.onboardingComplete")
             || DestinationStore.shared.items.isEmpty {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {

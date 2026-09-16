@@ -94,6 +94,20 @@ do {
     expectEqual(resolveDestination(requested: "work", saved: nil, available: []), nil, "nothing configured")
 }
 
+// MARK: Drop grid
+do {
+    let size = CGSize(width: 320, height: 224)
+    expectEqual(DropGrid.tileIndex(at: CGPoint(x: 300, y: 200), in: size, count: 1), 0, "one destination fills the grid")
+    expectEqual(DropGrid.tileIndex(at: CGPoint(x: 10, y: 200), in: size, count: 2), 0, "two destinations split left/right")
+    expectEqual(DropGrid.tileIndex(at: CGPoint(x: 300, y: 10), in: size, count: 2), 1)
+    expectEqual(DropGrid.tileIndex(at: CGPoint(x: 10, y: 200), in: size, count: 3), 2, "third tile bottom-left")
+    expectEqual(DropGrid.tileIndex(at: CGPoint(x: 300, y: 200), in: size, count: 3), nil, "empty fourth cell")
+    expectEqual(DropGrid.tileIndex(at: CGPoint(x: 300, y: 200), in: size, count: 9), 3, "capped at four tiles")
+    expectEqual(DropGrid.tileIndex(at: CGPoint(x: -5, y: 999), in: size, count: 4), 2, "out-of-bounds points clamp")
+    expectEqual(DropGrid.tileIndex(at: CGPoint(x: 0, y: 0), in: size, count: 0), nil)
+    expectEqual(DropGrid.rows(for: 3), 2)
+}
+
 // MARK: Shell quoting
 do {
     expectEqual(shellSingleQuote("it's"), "'it'\\''s'")
@@ -111,6 +125,7 @@ do {
     let overridden = Paths(home: "/Users/test", environment: ["DOTSHOT_CONFIG_DIR": "/tmp/cfg", "DOTSHOT_SHOTS_DIR": "/tmp/shots"])
     expectEqual(overridden.destinationsFile, "/tmp/cfg/destinations.tsv")
     expectEqual(overridden.shots, "/tmp/shots")
+    expect(overridden.isIsolated && !paths.isIsolated, "config override marks an isolated instance")
 }
 
 // MARK: Shot Pill migration

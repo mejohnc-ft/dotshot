@@ -30,6 +30,9 @@ struct Paths {
         environment["DOTSHOT_CONFIG_DIR"]
             ?? (home as NSString).appendingPathComponent("Library/Application Support/\(Brand.name)")
     }
+    /// Tests and documentation captures point dotshot at a private config folder; such instances
+    /// leave Shot Pill settings and running apps alone.
+    var isIsolated: Bool { environment["DOTSHOT_CONFIG_DIR"] != nil }
     var destinationsFile: String { (configDir as NSString).appendingPathComponent("destinations.tsv") }
     var legacyConfigDir: String {
         (home as NSString).appendingPathComponent("Library/Application Support/\(Brand.legacyConfigFolder)")
@@ -135,6 +138,28 @@ func resolveDestination(requested: String?, saved: String?, available: [String])
     if let requested, available.contains(requested) { return requested }
     if let saved, available.contains(saved) { return saved }
     return available.first
+}
+
+/// Drop targets: up to four destinations tiled in two columns (one full tile for a single destination).
+enum DropGrid {
+    static let maxTiles = 4
+
+    static func columns(for count: Int) -> Int { count <= 1 ? 1 : 2 }
+    static func rows(for count: Int) -> Int {
+        let tiles = min(max(count, 1), maxTiles)
+        return (tiles + columns(for: tiles) - 1) / columns(for: tiles)
+    }
+
+    /// Index of the tile under `point` (origin top-left) in a grid of `size`, or nil for an empty cell.
+    static func tileIndex(at point: CGPoint, in size: CGSize, count: Int) -> Int? {
+        let tiles = min(count, maxTiles)
+        guard tiles > 0, size.width > 0, size.height > 0 else { return nil }
+        let columns = columns(for: tiles), rows = rows(for: tiles)
+        let column = min(max(Int(point.x / (size.width / CGFloat(columns))), 0), columns - 1)
+        let row = min(max(Int(point.y / (size.height / CGFloat(rows))), 0), rows - 1)
+        let index = row * columns + column
+        return index < tiles ? index : nil
+    }
 }
 
 func shellSingleQuote(_ value: String) -> String {

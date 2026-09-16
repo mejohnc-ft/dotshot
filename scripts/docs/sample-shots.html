@@ -1,0 +1,36 @@
+<!doctype html><meta charset="utf-8"><title>sample</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font:15px -apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif;width:1280px;height:800px;overflow:hidden}
+.v{display:none;width:100%;height:100%}
+#settings{background:#f4f5f7;padding:48px;color:#1c1e21}
+#settings .card{background:#fff;border-radius:14px;box-shadow:0 1px 3px #0002;padding:32px;width:760px}
+#settings h1{margin:0 0 24px;font-size:28px}.row{display:flex;justify-content:space-between;padding:16px 0;border-top:1px solid #eee}
+.toggle{width:46px;height:26px;border-radius:13px;background:#34c759;position:relative}.toggle:after{content:"";position:absolute;right:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#fff}
+.overflow{white-space:nowrap;width:260px;background:#fff3cd;border:2px dashed #e0a800;padding:6px 10px;border-radius:6px}
+#tests{background:#0d1117;color:#c9d1d9;font:17px ui-monospace,Menlo,monospace;padding:36px;line-height:1.55}
+.red{color:#ff7b72}.green{color:#7ee787}.dim{color:#6e7681}.yellow{color:#e3b341}
+#chart{background:#0b1020;color:#e6e9f2;padding:44px}#chart h2{margin:0 0 8px;font-size:26px}
+.bars{display:flex;align-items:flex-end;gap:18px;height:520px;margin-top:40px;border-bottom:1px solid #2a3354}
+.bars div{flex:1;background:linear-gradient(#6c8cff,#3b5bdb);border-radius:8px 8px 0 0}
+#login{background:linear-gradient(135deg,#1e3a5f,#0f766e);display:grid;place-items:center}
+#login form{background:#fff;border-radius:18px;padding:40px;width:420px;box-shadow:0 20px 60px #0005}
+#login input{width:100%;padding:13px;margin:8px 0 16px;border:1px solid #d0d7de;border-radius:8px;font-size:16px}
+#login .err{color:#cf222e;font-size:14px;margin-top:-8px}#login button{width:100%;padding:14px;border:0;border-radius:8px;background:#0f766e;color:#fff;font-size:16px;font-weight:600}
+</style>
+<div class="v" id="settings"><div class="card"><h1>Network Settings</h1>
+<div class="row"><span>Private relay</span><span class="toggle"></span></div>
+<div class="row"><span>Proxy host</span><span class="overflow">proxy.internal.example.corp.long-hostname:8443</span></div>
+<div class="row"><span>DNS over HTTPS</span><span class="toggle"></span></div>
+<div class="row"><span>Retry policy</span><span>Exponential backoff</span></div></div></div>
+<div class="v" id="tests"><div class="dim">$ npm test -- checkout</div><br>
+<div> PASS  src/cart/total.test.ts</div><div> PASS  src/cart/discount.test.ts</div>
+<div class="red"> FAIL  src/checkout/payment-form.test.tsx</div>
+<div>  ● PaymentForm › shows inline error for expired card</div><br>
+<div class="dim">    expect(screen.getByRole("alert")).toHaveTextContent(expected)</div><br>
+<div>    Expected: <span class="green">"Card expired — use another card"</span></div>
+<div>    Received: <span class="red">"Something went wrong"</span></div><br>
+<div class="yellow">Tests: 1 failed, 41 passed, 42 total</div><div class="dim">Time: 3.81 s</div></div>
+<div class="v" id="chart"><h2>p95 latency · api-gateway</h2><div style="color:#8b93b0">Last 12 deploys — regression after build 1184</div>
+<div class="bars"><div style="height:30%"></div><div style="height:32%"></div><div style="height:29%"></div><div style="height:31%"></div><div style="height:33%"></div><div style="height:30%"></div><div style="height:34%"></div><div style="height:31%"></div><div style="height:78%;background:linear-gradient(#ff8a8a,#e03131)"></div><div style="height:81%;background:linear-gradient(#ff8a8a,#e03131)"></div><div style="height:79%;background:linear-gradient(#ff8a8a,#e03131)"></div><div style="height:83%;background:linear-gradient(#ff8a8a,#e03131)"></div></div></div>
+<div class="v" id="login"><form><h2 style="margin:0 0 20px">Sign in</h2><label>Email</label><input value="dev@example.com"><label>Password</label><input type="password" value="hunter22"><div class="err">Invalid credentials. 2 attempts remaining.</div><br><button type="button">Continue</button></form></div>
+<script>document.getElementById(location.hash.slice(1)||"settings").style.display="block"</script>
