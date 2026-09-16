@@ -39,8 +39,8 @@ for pair in chart:p95-latency-api-gateway login:sign-in-invalid-credentials test
   minute=$((minute + 1))
 done
 
-# shoot <output-name> <expected-window-min-width> [ENV=VALUE ...]: launch, capture the largest window, quit.
-shoot() {
+# shoot_once <output-name> <expected-window-min-width> [ENV=VALUE ...]: launch, capture the largest window, quit.
+shoot_once() {
   local name="$1" min_width="$2"; shift 2
   local env_args=(--env DOTSHOT_CONFIG_DIR="$WORK/config" --env DOTSHOT_SHOTS_DIR="$WORK/Shots"
                   --env DOTSHOT_CAPTURABLE=1 --env DOTSHOT_NO_AUTO_SETUP=1)
@@ -61,6 +61,16 @@ shoot() {
   sleep 1.5   # thumbnails, materials, and animations settle
   screencapture -x -o -l "$window" "$OUT/$name.png"
   echo "    $name.png"
+}
+
+# Launches occasionally race the previous instance's exit; retry a few times.
+shoot() {
+  local attempt
+  for attempt in 1 2 3; do
+    shoot_once "$@" && return 0
+    sleep 1
+  done
+  return 1
 }
 
 echo "==> app windows"

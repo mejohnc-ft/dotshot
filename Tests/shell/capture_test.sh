@@ -109,6 +109,11 @@ check "notification text is passed as argv, not AppleScript source" contains "$(
 check "quoted file name delivered intact" contains "$(cat "$DOTSHOT_TEST_CLIPBOARD")" 'x"-&-(do-shell-script-"id")-&-".png'
 
 reset
+DOTSHOT_NOTIFY_STDOUT=1 run send work "$WORK/My Notes.txt"
+check "app mode prints notification line" equals "$(cat "$WORK/stdout")" $'dotshot-notify\tSent to work\t/Users/john/inbound/My-Notes.txt (path copied)'
+check "app mode skips osascript" bash -c "! grep -q '^osascript' '$CALLS'"
+
+reset
 run send missing "$WORK/My Notes.txt"
 check "unknown destination exits 1" equals "$?" "1"
 check "unknown destination asks for setup" contains "$(cat "$CALLS")" "dotshot needs setup"

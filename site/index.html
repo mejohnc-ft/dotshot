@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>dotshot — capture here, let your agents use it there</title>
+<meta name="description" content="dotshot sends screenshots and recordings from your Mac to any SSH-connected machine and copies the remote path, ready for Claude Code, Codex, or any terminal agent.">
+<meta property="og:title" content="dotshot">
+<meta property="og:description" content="Capture here. Let your agents use it there. Screenshots and recordings delivered over SSH, with the remote path on your clipboard.">
+<meta property="og:image" content="images/hero.png">
+<meta name="theme-color" content="#002b36">
+<link rel="icon" href="images/nub.png">
+<style>
+  :root {
+    --bg: #fdf6e3;
+    --bg-2: #f5eed8;
+    --card: #fffdf6;
+    --ink: #073642;
+    --ink-2: #3f5a61;
+    --muted: #5f7479;
+    --line: rgba(7, 54, 66, 0.14);
+    --accent: #8a6800;
+    --accent-fill: #b58900;
+    --accent-ink: #1b1500;
+    --code-bg: #eee6cc;
+    --hero-bg: #002b36;
+    --hero-ink: #fdf6e3;
+    --hero-muted: #a9bcbd;
+    --radius: 16px;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #00212b;
+      --bg-2: #002b36;
+      --card: #073642;
+      --ink: #eee8d5;
+      --ink-2: #c9c3ad;
+      --muted: #93a1a1;
+      --line: rgba(238, 232, 213, 0.13);
+      --accent: #e0b43c;
+      --accent-fill: #b58900;
+      --accent-ink: #1b1500;
+      --code-bg: #01313d;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #00212b; --bg-2: #002b36; --card: #073642; --ink: #eee8d5; --ink-2: #c9c3ad; --muted: #93a1a1;
+    --line: rgba(238, 232, 213, 0.13); --accent: #e0b43c; --code-bg: #01313d; color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 17px/1.6 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  img, video { max-width: 100%; display: block; }
+  a { color: var(--accent); text-underline-offset: 3px; }
+  a:focus-visible, button:focus-visible { outline: 3px solid var(--accent-fill); outline-offset: 3px; border-radius: 6px; }
+  code, kbd, pre { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  code { font-size: 0.88em; background: var(--code-bg); padding: 0.12em 0.4em; border-radius: 6px; word-break: break-word; }
+  kbd { font-size: 0.85em; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 6px; padding: 0.05em 0.4em; background: var(--card); white-space: nowrap; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding-inline: clamp(16px, 4vw, 40px); }
+  .eyebrow { font: 700 12px/1 ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); margin: 0 0 14px; }
+  h2 { font-size: clamp(28px, 4vw, 40px); line-height: 1.12; letter-spacing: -0.02em; margin: 0 0 14px; }
+  h3 { font-size: 19px; margin: 0 0 6px; letter-spacing: -0.01em; }
+  section { padding-block: clamp(56px, 9vw, 104px); }
+  .lede { color: var(--ink-2); font-size: clamp(17px, 2vw, 19px); max-width: 680px; margin: 0; }
+
+  /* nav + hero (always dark, matching the product) */
+  .hero {
+    background:
+      radial-gradient(900px 520px at 8% -10%, rgba(181, 137, 0, 0.28), transparent 60%),
+      radial-gradient(760px 520px at 100% 110%, rgba(42, 161, 152, 0.22), transparent 60%),
+      linear-gradient(165deg, #003440, #002029 60%, #001a22);
+    color: var(--hero-ink); padding-block: 0 clamp(48px, 8vw, 88px);
+  }
+  nav { display: flex; align-items: center; gap: 20px; padding-block: 20px; }
+  .brand { display: flex; align-items: center; gap: 10px; color: var(--hero-ink); text-decoration: none; font-weight: 700; font-size: 20px; letter-spacing: -0.02em; }
+  .brand .dot { width: 20px; height: 20px; border-radius: 50%; background: #b58900; box-shadow: 0 0 0 4px rgba(181, 137, 0, 0.3); }
+  nav .links { margin-left: auto; display: flex; gap: 22px; font-size: 15px; }
+  nav .links a { color: var(--hero-muted); text-decoration: none; }
+  nav .links a:hover { color: var(--hero-ink); }
+  .hero-grid { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: clamp(28px, 5vw, 64px); align-items: center; padding-top: clamp(24px, 5vw, 56px); }
+  .hero h1 { font-size: clamp(38px, 6vw, 64px); line-height: 1.02; letter-spacing: -0.035em; margin: 0 0 20px; }
+  .hero h1 span { color: #e0b43c; }
+  .hero p { color: var(--hero-muted); font-size: clamp(17px, 2vw, 20px); margin: 0 0 28px; max-width: 520px; }
+  .hero p strong { color: var(--hero-ink); font-weight: 600; }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .button {
+    display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 650; font-size: 16px;
+    padding: 13px 20px; border-radius: 12px; background: #b58900; color: #1b1500;
+    box-shadow: 0 10px 24px rgba(181, 137, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  }
+  .button:hover { background: #c99a0c; }
+  .button.ghost { background: transparent; color: var(--hero-ink); box-shadow: inset 0 0 0 1px rgba(238, 232, 213, 0.28); }
+  .button.ghost:hover { background: rgba(238, 232, 213, 0.08); }
+  .meta { margin-top: 18px; font-size: 14px; color: var(--hero-muted); }
+  .meta code { background: rgba(238, 232, 213, 0.1); color: var(--hero-ink); }
+  .demo { border-radius: 14px; overflow: hidden; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(238, 232, 213, 0.12); background: #001820; aspect-ratio: 16 / 9; }
+  .demo video, .demo img { width: 100%; height: 100%; object-fit: cover; }
+
+  /* how it works */
+  .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 40px; counter-reset: step; }
+  .step { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; }
+  .step::before {
+    counter-increment: step; content: counter(step);
+    display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
+    background: var(--accent-fill); color: var(--accent-ink); font-weight: 700; font-size: 14px; margin-bottom: 16px;
+  }
+  .step p { margin: 0; color: var(--ink-2); font-size: 16px; }
+  .path-demo { margin-top: 28px; background: #0b1419; color: #c9d1d9; border-radius: 12px; padding: 16px 18px; font: 14px/1.6 ui-monospace, "SF Mono", Menlo, monospace; overflow-x: auto; white-space: nowrap; }
+  .path-demo .p { color: #fdf6e3; background: rgba(181, 137, 0, 0.3); border-radius: 4px; padding: 0 4px; }
+  .path-demo .g { color: #e0b43c; }
+
+  /* features */
+  .alt { background: var(--bg-2); }
+  .features { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 40px; }
+  .feature { padding: 22px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--card); }
+  .feature p { margin: 0; color: var(--ink-2); font-size: 15.5px; }
+  .feature .icon { font-size: 22px; margin-bottom: 10px; display: block; }
+  .shots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 36px; }
+  figure { margin: 0; }
+  figure img { border-radius: 14px; border: 1px solid var(--line); width: 100%; height: auto; }
+  figcaption { font-size: 14px; color: var(--muted); margin-top: 8px; }
+
+  /* setup */
+  .setup-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr); gap: clamp(28px, 5vw, 56px); align-items: start; margin-top: 40px; }
+  ol.guide { list-style: none; margin: 0; padding: 0; counter-reset: guide; }
+  ol.guide > li { position: relative; padding: 0 0 26px 52px; counter-increment: guide; }
+  ol.guide > li::before {
+    content: counter(guide); position: absolute; left: 0; top: -2px; width: 34px; height: 34px; border-radius: 50%;
+    display: grid; place-items: center; font-weight: 700; font-size: 15px;
+    border: 2px solid var(--accent-fill); color: var(--accent);
+  }
+  ol.guide > li:not(:last-child)::after { content: ""; position: absolute; left: 16px; top: 38px; bottom: 6px; width: 2px; background: var(--line); }
+  ol.guide p { margin: 4px 0 8px; color: var(--ink-2); font-size: 16px; }
+  ol.guide ul { margin: 6px 0 8px; padding-left: 20px; color: var(--ink-2); font-size: 16px; }
+  pre { background: var(--code-bg); border-radius: 10px; padding: 12px 14px; overflow-x: auto; font-size: 14px; line-height: 1.55; margin: 8px 0; }
+  pre code { background: none; padding: 0; font-size: inherit; word-break: normal; }
+  .note { font-size: 14.5px; border-left: 3px solid var(--accent-fill); padding: 8px 12px; background: var(--card); border-radius: 0 8px 8px 0; color: var(--ink-2); margin: 8px 0; }
+  .sticky { position: sticky; top: 24px; display: grid; gap: 18px; }
+
+  /* table */
+  .table-wrap { overflow-x: auto; margin-top: 28px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); }
+  table { border-collapse: collapse; width: 100%; font-size: 15.5px; min-width: 560px; }
+  th, td { text-align: left; padding: 13px 18px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  tr:last-child td { border-bottom: 0; }
+
+  /* privacy + faq */
+  .privacy { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 40px; margin: 32px 0 0; padding: 0; list-style: none; }
+  .privacy li { padding-left: 30px; position: relative; color: var(--ink-2); }
+  .privacy li::before { content: "✓"; position: absolute; left: 0; color: var(--accent); font-weight: 700; }
+  details { border-bottom: 1px solid var(--line); padding: 16px 0; }
+  details:first-of-type { border-top: 1px solid var(--line); margin-top: 32px; }
+  summary { cursor: pointer; font-weight: 650; font-size: 18px; list-style: none; display: flex; justify-content: space-between; gap: 16px; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: "+"; color: var(--accent); font-weight: 400; font-size: 24px; line-height: 1; }
+  details[open] summary::after { content: "–"; }
+  details p { color: var(--ink-2); margin: 10px 0 0; max-width: 760px; }
+
+  footer { border-top: 1px solid var(--line); padding-block: 36px; color: var(--muted); font-size: 15px; }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; }
+  footer .spacer { flex: 1; }
+
+  @media (max-width: 900px) {
+    .hero-grid, .setup-grid { grid-template-columns: minmax(0, 1fr); }
+    .steps, .features { grid-template-columns: minmax(0, 1fr); }
+    .shots, .privacy { grid-template-columns: minmax(0, 1fr); }
+    .sticky { position: static; }
+    nav .links a.optional { display: none; }
+  }
+  @media (max-width: 480px) {
+    nav .links { gap: 14px; font-size: 14px; }
+    .button { width: 100%; justify-content: center; }
+  }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav aria-label="Primary">
+      <a class="brand" href="#top" id="top"><span class="dot" aria-hidden="true"></span>dotshot</a>
+      <div class="links">
+        <a href="#how" class="optional">How it works</a>
+        <a href="#setup">Setup</a>
+        <a href="#faq" class="optional">FAQ</a>
+        <a href="https://github.com/mejohnc-ft/dotshot">GitHub</a>
+      </div>
+    </nav>
+
+    <div class="hero-grid">
+      <div>
+        <h1>Capture here.<br><span>Let your agents use it there.</span></h1>
+        <p>dotshot sends a screenshot or recording from your Mac straight to the machine where your agent is working, then <strong>copies the remote path</strong> to your clipboard. No save dialog, no upload, no hunting for files.</p>
+        <div class="cta">
+          <a class="button" href="https://github.com/mejohnc-ft/dotshot/releases/latest">
+            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3a1 1 0 0 1 1 1v9.59l3.3-3.3a1 1 0 1 1 1.4 1.42l-5 5a1 1 0 0 1-1.4 0l-5-5a1 1 0 1 1 1.4-1.42L11 13.6V4a1 1 0 0 1 1-1Zm-7 15a1 1 0 0 1 1 1v1h12v-1a1 1 0 1 1 2 0v2a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-2a1 1 0 0 1 1-1Z"/></svg>
+            Download for Mac
+          </a>
+          <a class="button ghost" href="#setup">Set up in 5 minutes</a>
+        </div>
+        <div class="meta">Free and open source · macOS 14+ · Apple silicon &amp; Intel · Homebrew tap coming soon</div>
+      </div>
+      <div class="demo">
+        <video autoplay muted loop playsinline preload="metadata" poster="images/demo-poster.png"
+               aria-label="Demo: hover the dotshot nub, click Shot, select part of a settings page, get a Sent notification, and paste the remote path into a terminal agent">
+          <source src="images/demo.mp4" type="video/mp4">
+          <img src="images/demo.gif" alt="Animated demo of capturing a region, delivering it over SSH, and pasting the remote path into an agent">
+        </video>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section id="how">
+    <div class="wrap">
+      <p class="eyebrow">How it works</p>
+      <h2>The screenshot is usually on the wrong computer.</h2>
+      <p class="lede">You code across a laptop, a desktop, build boxes, a GPU workstation. Your agent runs on one of them; your eyes are on another. dotshot turns what you see into a path the agent can read.</p>
+      <div class="steps">
+        <div class="step"><h3>Capture</h3><p>Press <kbd>⌃⌥⌘S</kbd> and drag, or <kbd>⌃⌥⌘V</kbd> to record. Offline OCR gives the file a useful name.</p></div>
+        <div class="step"><h3>Deliver</h3><p>dotshot copies it over your existing SSH or Tailscale connection with the system <code>scp</code>. A local copy stays in <code>~/Shots</code>.</p></div>
+        <div class="step"><h3>Use</h3><p>The absolute remote path lands on your clipboard. Paste it into Claude Code, Codex, or any terminal agent.</p></div>
+      </div>
+      <div class="path-demo" role="img" aria-label="Example agent prompt using a pasted remote path"><span class="g">&gt;</span> Review the layout issue in <span class="p">/home/dev/inbound/settings-panel-proxy-host-20260916-101400.png</span></div>
+    </div>
+  </section>
+
+  <section class="alt" id="features">
+    <div class="wrap">
+      <p class="eyebrow">Features</p>
+      <h2>Small nub. Whole fleet.</h2>
+      <p class="lede">dotshot idles as a 42px camera nub in the corner of your screen. Hover to reveal capture controls, destinations, accents, and recent captures.</p>
+      <div class="features">
+        <div class="feature"><span class="icon" aria-hidden="true">🎯</span><h3>Region shots, smart names</h3><p>On-device Apple Vision OCR names files after what is on screen, like <code>payment-form-test-failed-…png</code>.</p></div>
+        <div class="feature"><span class="icon" aria-hidden="true">🎬</span><h3>Recordings</h3><p>Record a full display or a selected region, then send as-is, trim in QuickTime, or shrink to 720p.</p></div>
+        <div class="feature"><span class="icon" aria-hidden="true">🛰️</span><h3>Many destinations</h3><p>Name each machine — <code>work</code>, <code>gpu</code>, <code>nas</code> — and switch from the pill. Drag any file onto the nub to send it.</p></div>
+        <div class="feature"><span class="icon" aria-hidden="true">⌨️</span><h3>Global shortcuts</h3><p><kbd>⌃⌥⌘S</kbd> for a screenshot, <kbd>⌃⌥⌘V</kbd> for a recording. No Accessibility permission required.</p></div>
+        <div class="feature"><span class="icon" aria-hidden="true">🔗</span><h3>Automation URLs</h3><p>Trigger captures from Shortcuts, Raycast, BetterTouchTool, or scripts with <code>dotshot://</code> links.</p></div>
+        <div class="feature"><span class="icon" aria-hidden="true">🔒</span><h3>No cloud</h3><p>No account, server, inbox, API key, or telemetry. Just your Mac, your keys, and your machines.</p></div>
+      </div>
+      <div class="shots">
+        <figure>
+          <img src="images/pill.png" alt="The dotshot camera nub next to the expanded pill with Shot and Vid buttons, accent colors, and recent capture thumbnails" loading="lazy" width="2400" height="1120">
+          <figcaption>Idle nub and hover pill</figcaption>
+        </figure>
+        <figure>
+          <img src="images/drop-targets.png" alt="Four colored drop targets named work, gpu, nas, and ci, with a file being dragged onto gpu" loading="lazy" width="2000" height="1120">
+          <figcaption>Drag a file onto a destination</figcaption>
+        </figure>
+        <figure>
+          <img src="images/recording-picker.png" alt="Recording picker offering the built-in display, an external display, or a selected portion" loading="lazy" width="2160" height="1280">
+          <figcaption>Choose what to record</figcaption>
+        </figure>
+        <figure>
+          <img src="images/setup-destinations.png" alt="Setup window listing destinations with name, SSH address, destination folder, and a Test button for each" loading="lazy" width="1560" height="1170">
+          <figcaption>Destinations with one-click connection tests</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section id="setup">
+    <div class="wrap">
+      <p class="eyebrow">Get set up in 5 minutes</p>
+      <h2>From download to your first delivered path.</h2>
+      <p class="lede">dotshot's guided setup walks through each of these steps. Here they are in advance, so you know what to expect.</p>
+
+      <div class="setup-grid">
+        <ol class="guide">
+          <li>
+            <h3>Install dotshot</h3>
+            <p>Download the latest <code>.dmg</code> from <a href="https://github.com/mejohnc-ft/dotshot/releases/latest">GitHub Releases</a>, open it, and drag <strong>dotshot</strong> into <strong>Applications</strong>. Requires macOS 14 Sonoma or newer.</p>
+            <p class="note">If macOS says it can’t verify the developer (builds that are not yet notarized), open <strong>System Settings → Privacy &amp; Security</strong>, scroll to the message about dotshot, and click <strong>Open Anyway</strong>. Always check the download against <code>SHA256SUMS.txt</code> on the release page.</p>
+          </li>
+          <li>
+            <h3>Allow Screen Recording</h3>
+            <p>Click <strong>Request Permission</strong> in setup, then enable dotshot under <strong>Privacy &amp; Security → Screen &amp; System Audio Recording</strong>. Quit and reopen dotshot if the status doesn’t change.</p>
+          </li>
+          <li>
+            <h3>Turn on SSH at the destination</h3>
+            <ul>
+              <li><strong>Mac:</strong> System Settings → General → Sharing → <strong>Remote Login</strong>.</li>
+              <li><strong>Linux:</strong> install and enable OpenSSH, e.g. <code>sudo apt install openssh-server</code>.</li>
+            </ul>
+          </li>
+          <li>
+            <h3>Authorize this Mac’s key</h3>
+            <p>No key yet? Create one on your Mac:</p>
+            <pre><code>ssh-keygen -t ed25519</code></pre>
+            <p>Then install it on the destination once (it asks for that machine’s password this one time):</p>
+            <pre><code>ssh-copy-id you@mac-studio.local</code></pre>
+            <p>Setup’s <strong>SSH Access</strong> step can copy both commands for you.</p>
+          </li>
+          <li>
+            <h3>Add a destination and press Test</h3>
+            <p>Give it a short name, an SSH address, and a folder:</p>
+            <pre><code>work    you@mac-studio.local    ~/inbound</code></pre>
+            <p>Test checks the host, key, and folder separately, creates the folder, and turns <code>~/inbound</code> into an absolute path. Tailscale MagicDNS names, <code>100.x</code> addresses, and <code>~/.ssh/config</code> aliases all work.</p>
+          </li>
+          <li>
+            <h3>Take your first capture</h3>
+            <p>Press <kbd>⌃⌥⌘S</kbd>, drag over part of the screen, and wait for <strong>Sent to work</strong>. The remote path is now on your clipboard.</p>
+          </li>
+          <li>
+            <h3>Hand it to your agent</h3>
+            <pre><code>&gt; Fix the overflow in /Users/you/inbound/network-settings-proxy-host-20260916-101400.png</code></pre>
+            <p>If a transfer fails, dotshot keeps the file in <code>~/Shots</code> and copies the local path instead.</p>
+          </li>
+        </ol>
+
+        <div class="sticky">
+          <figure>
+            <img src="images/setup-welcome.png" alt="dotshot setup welcome step explaining Capture, Deliver, and Use" loading="lazy" width="1560" height="1170">
+            <figcaption>Guided setup opens on first launch</figcaption>
+          </figure>
+          <figure>
+            <img src="images/setup-connect.png" alt="SSH Access setup step with steps to enable SSH, prepare a key, and authorize it, plus Copy Public Key and Open Terminal buttons" loading="lazy" width="1560" height="1170">
+            <figcaption>SSH help, without needing an alias</figcaption>
+          </figure>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="alt" id="automation">
+    <div class="wrap">
+      <p class="eyebrow">Automation</p>
+      <h2>Trigger captures from anything.</h2>
+      <p class="lede">Open these URLs from Shortcuts, Raycast, BetterTouchTool, a Stream Deck, or <code>open</code> in a terminal. Leave out <code>dest</code> to use the destination selected in the pill.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Action</th><th scope="col">URL</th></tr></thead>
+          <tbody>
+            <tr><td>Screenshot to the current destination</td><td><code>dotshot://image</code></td></tr>
+            <tr><td>Screenshot to a named destination</td><td><code>dotshot://image?dest=work</code></td></tr>
+            <tr><td>Choose what to record</td><td><code>dotshot://video?dest=work</code></td></tr>
+            <tr><td>Record display 2 directly</td><td><code>dotshot://video?dest=work&amp;screen=2</code></td></tr>
+            <tr><td>Record a selected region</td><td><code>dotshot://video?dest=work&amp;screen=region</code></td></tr>
+            <tr><td>Open destination settings</td><td><code>dotshot://settings</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <pre><code>open 'dotshot://image?dest=gpu'</code></pre>
+    </div>
+  </section>
+
+  <section id="privacy">
+    <div class="wrap">
+      <p class="eyebrow">Privacy</p>
+      <h2>Your screen stays between your machines.</h2>
+      <p class="lede">dotshot can read the screen only after you approve it in macOS, and it sends files only to destinations you configure.</p>
+      <ul class="privacy">
+        <li>No account, cloud inbox, or receiving service</li>
+        <li>No analytics, telemetry, or automatic update pings</li>
+        <li>Transfers use the system <code>ssh</code>/<code>scp</code> and your existing keys</li>
+        <li>Never stores passwords or reads private keys</li>
+        <li>Host-key checking stays on; password prompts are disabled</li>
+        <li>Open source under the MIT License</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="alt" id="faq">
+    <div class="wrap">
+      <p class="eyebrow">FAQ</p>
+      <h2>Questions</h2>
+      <details>
+        <summary>Do I need Tailscale?</summary>
+        <p>No. Any address your Mac can reach over SSH works: <code>user@host.local</code> on your network, a public hostname, or an alias from <code>~/.ssh/config</code>. With Tailscale, use the machine’s MagicDNS name or <code>100.x</code> address; regular SSH and Tailscale SSH both work.</p>
+      </details>
+      <details>
+        <summary>Can destinations run Linux?</summary>
+        <p>Yes. Destinations only need an SSH server and a folder the account can write to. dotshot itself runs on macOS.</p>
+      </details>
+      <details>
+        <summary>Which Macs are supported?</summary>
+        <p>macOS 14 Sonoma or newer, on Apple silicon or Intel. The release is a universal app.</p>
+      </details>
+      <details>
+        <summary>Does anything get installed on the destination?</summary>
+        <p>No. dotshot copies files with <code>scp</code> into the folder you choose. There is no daemon, agent, or receiving service.</p>
+      </details>
+      <details>
+        <summary>I used Shot Pill. Do I need to set things up again?</summary>
+        <p>No. dotshot is Shot Pill’s new name. On first launch it imports your destinations and preferences and quits the old app. macOS will ask for Screen Recording permission again, and <code>shotpill://</code> links become <code>dotshot://</code>. Remove the old app afterwards.</p>
+      </details>
+      <details>
+        <summary>Where are captures and settings stored?</summary>
+        <p>Captures and a log live in <code>~/Shots</code>. Destinations live in <code>~/Library/Application Support/dotshot/destinations.tsv</code>.</p>
+      </details>
+      <details>
+        <summary>What if a transfer fails?</summary>
+        <p>dotshot keeps the file in <code>~/Shots</code>, copies the local path instead, and shows a notification. Details are in <code>~/Shots/.dotshot.log</code>.</p>
+      </details>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <a class="brand" href="#top" style="color: var(--ink); font-size: 17px;"><span class="dot" aria-hidden="true"></span>dotshot</a>
+    <span class="spacer"></span>
+    <a href="https://github.com/mejohnc-ft/dotshot">GitHub</a>
+    <a href="https://github.com/mejohnc-ft/dotshot/releases/latest">Releases</a>
+    <a href="https://github.com/mejohnc-ft/dotshot/blob/main/LICENSE">MIT License</a>
+  </div>
+</footer>
+
+</body>
+</html>

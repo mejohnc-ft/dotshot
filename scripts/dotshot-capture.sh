@@ -31,8 +31,14 @@ SSH_OPTS=(-o BatchMode=yes -o "ConnectTimeout=$SSH_TIMEOUT")
 
 log() { mkdir -p "$SHOTS" && printf '%s [%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "${MODE:-?}" "$*" >> "$LOG"; }
 
-# Values are passed as AppleScript arguments, never interpolated into source.
+# Launched by the app: print a line the app turns into a dotshot notification.
+# Standalone: values are passed as AppleScript arguments, never interpolated into source.
 notify() {
+  if [ "${DOTSHOT_NOTIFY_STDOUT:-}" = 1 ]; then
+    local title="${1//[$'\t\n']/ }" body="${2//[$'\t\n']/ }"
+    printf 'dotshot-notify\t%s\t%s\n' "$title" "$body"
+    return
+  fi
   osascript -e 'on run argv' -e 'display notification (item 2 of argv) with title (item 1 of argv)' -e 'end run' \
     "$1" "$2" >/dev/null 2>&1
 }

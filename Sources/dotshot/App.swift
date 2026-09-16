@@ -6,6 +6,7 @@ import Carbon
 import ServiceManagement
 import QuickLookThumbnailing
 import UniformTypeIdentifiers
+import UserNotifications
 
 let PATHS = Paths()
 
@@ -30,7 +31,7 @@ let SHOTS = PATHS.shots
 let SCRIPT = Bundle.main.resourceURL?.appendingPathComponent("dotshot-capture.sh").path ?? ""
 
 let COLLAPSED = NSSize(width: 56, height: 56)   // small round nub when idle
-let EXPANDED  = NSSize(width: 500, height: 292)
+let EXPANDED  = NSSize(width: 500, height: 262)
 let QUADRANT  = NSSize(width: 320, height: 224)
 let RECORDING_PICKER = NSSize(width: 700, height: 390)
 
@@ -148,11 +149,63 @@ func runScript(_ arguments: [String]) {
     let process = Process()
     process.executableURL = URL(fileURLWithPath: "/bin/bash")
     process.arguments = [SCRIPT] + arguments
+    // The script reports progress on stdout so notifications come from dotshot, not Script Editor.
+    var environment = ProcessInfo.processInfo.environment
+    environment["DOTSHOT_NOTIFY_STDOUT"] = "1"
+    process.environment = environment
+    let output = Pipe()
+    process.standardOutput = output
+    var buffer = Data()
+    output.fileHandleForReading.readabilityHandler = { handle in
+        let chunk = handle.availableData
+        if chunk.isEmpty {
+            handle.readabilityHandler = nil
+            return
+        }
+        buffer.append(chunk)
+        while let newline = buffer.firstIndex(of: 0x0A) {
+            let line = String(decoding: buffer[buffer.startIndex..<newline], as: UTF8.self)
+            buffer.removeSubrange(buffer.startIndex...newline)
+            let fields = line.components(separatedBy: "\t")
+            if fields.count == 3, fields[0] == "dotshot-notify" {
+                Notifier.shared.post(title: fields[1], body: fields[2])
+            }
+        }
+    }
     do {
         try process.run()
     } catch {
         NSLog("dotshot: could not run capture script: \(error)")
         NSSound.beep()
+    }
+}
+
+final class Notifier: NSObject, UNUserNotificationCenterDelegate {
+    static let shared = Notifier()
+    private let center = UNUserNotificationCenter.current()
+
+    private override init() {
+        super.init()
+        center.delegate = self
+    }
+
+    func post(title: String, body: String) {
+        center.requestAuthorization(options: [.alert, .sound]) { granted, error in
+            guard granted else {
+                if let error { NSLog("dotshot: notifications unavailable: \(error.localizedDescription)") }
+                return
+            }
+            let content = UNMutableNotificationContent()
+            content.title = title
+            content.body = body
+            self.center.add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
+        }
+    }
+
+    // dotshot is an accessory app that is often frontmost while capturing; show banners anyway.
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .list])
     }
 }
 
@@ -981,7 +1034,7 @@ struct SetupView: View {
             Spacer()
             Text("Settings can be reopened from the gear on the expanded pill.")
                 .font(.system(size: 10.5))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(24)
@@ -1380,7 +1433,7 @@ struct SetupView: View {
             Spacer()
             Text("\(step.rawValue + 1) of \(SetupStep.allCases.count)")
                 .font(.system(size: 11, design: .monospaced))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(.secondary)
             Button(step == .done ? "Finish" : "Continue") { advance() }
                 .buttonStyle(.borderedProminent)
                 .tint(accent)
@@ -1742,6 +1795,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ n: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        _ = Notifier.shared
         globalHotKeys = GlobalHotKeys()
         let host = NSHostingView(rootView: PillView())
         window = NSPanel(contentRect: NSRect(origin: .zero, size: EXPANDED),
