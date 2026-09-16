@@ -73,4 +73,13 @@ and `DOTSHOT_SHOTS_DIR` isolate settings when testing on your main account.
 Build: `dotshot-1.0.0.dmg`, universal (arm64 + x86_64), minimum macOS 14.0, ad-hoc signed.
 Tested on macOS 26.6.1 (Apple M5 Max), two displays.
 
-See the release pull request for the run log.
+| Area | Result |
+| --- | --- |
+| `./scripts/test.sh` | Pass: shellcheck, 64/64 core checks, 37/37 capture-script checks |
+| Real SSH delivery (`DOTSHOT_E2E_HOST=nas`) | Pass: absolute remote path on the clipboard, content verified, cleaned up |
+| Release build | Pass: every binary universal (arm64 + x86_64) with `minos 14.0`; `codesign --verify --deep --strict` OK; DMG verifies; `spctl` rejects it as expected for ad-hoc signing |
+| Bundled helpers | Pass: OCR naming on the sample captures (arm64 and x86_64 under Rosetta); `avresize` 1920×1080 → 1280×720 |
+| Launch smoke test (isolated config) | Pass: runs as an accessory app, no crash reports, only system noise in the log |
+| Visual review of every window (pill expanded, collapsed, and drop; recording picker; all 8 setup steps) | Pass after fixes: gray pill buttons, truncated sidebar labels, drop-tile layout and mapping, slider tint, picker alignment, callout widths, contrast, pill height |
+| Found and fixed in QA | Wrong minimum macOS, host-only architecture, AppleScript injection in notifications, SSH password-prompt hangs, trailing `-` in sent names, notifications shown as Script Editor, off-screen pill after a display change |
+| Manual GUI checklist above | **Not yet run.** Needs a person to click through permission, Test, capture, recording, drag and drop, and migration on the release DMG. |
