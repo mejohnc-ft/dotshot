@@ -1,0 +1,22 @@
+# Homebrew cask for dotshot. scripts/release.sh fills in the version and checksum.
+# Publish by copying the generated build/release/<version>/dotshot.rb into a tap, e.g. mejohnc-ft/homebrew-tap/Casks/.
+cask "dotshot" do
+  version "@VERSION@"
+  sha256 "@SHA256@"
+
+  url "https://github.com/mejohnc-ft/dotshot/releases/download/v#{version}/dotshot-#{version}.dmg"
+  name "dotshot"
+  desc "Send screenshots and recordings to SSH machines and copy the remote path for agents"
+  homepage "https://github.com/mejohnc-ft/dotshot"
+
+  depends_on macos: ">= :sonoma"
+
+  app "dotshot.app"
+
+  uninstall quit: "com.mejohnc.dotshot"
+
+  zap trash: [
+    "~/Library/Application Support/dotshot",
+    "~/Library/Preferences/com.mejohnc.dotshot.plist",
+  ]
+end

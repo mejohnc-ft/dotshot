@@ -11,11 +11,15 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v5
-      - name: Typecheck app
-        run: swiftc -typecheck Sources/ShotPill.swift
-      - name: Check capture script
-        run: bash -n scripts/shot-to-work.sh
-      - name: Build ad-hoc signed app
-        run: ./scripts/build.sh --app "$PWD/dist/Shot Pill.app" --no-launch --adhoc
-      - name: Verify signature
-        run: codesign --verify --deep --strict "$PWD/dist/Shot Pill.app"
+      - name: Install shellcheck
+        run: brew install shellcheck
+      - name: Tests
+        run: ./scripts/test.sh
+      - name: Build universal ad-hoc app
+        run: ./scripts/build.sh --app "$PWD/dist/dotshot.app" --no-launch --adhoc --universal
+      - name: Verify bundle
+        run: |
+          codesign --verify --deep --strict "$PWD/dist/dotshot.app"
+          for binary in dist/dotshot.app/Contents/MacOS/dotshot dist/dotshot.app/Contents/Resources/{panel,ocr-slug,avresize}; do
+            lipo "$binary" -verify_arch arm64 x86_64
+          done
