@@ -34,7 +34,7 @@ record='printf "%s" "$(basename "$0")" >> "$DOTSHOT_TEST_CALLS"; printf " [%s]" 
 cat > "$BIN/scp" <<STUB
 #!/bin/bash
 $record
-[ "\${STUB_SCP_FAIL:-0}" = 1 ] && { echo "ssh: connect to host: Connection refused" >&2; exit 1; }
+[ "\${STUB_SCP_FAIL:-0}" = 1 ] && { echo "ssh: connect to host: Operation timed out" >&2; echo "scp: Connection closed" >&2; exit 255; }
 [ "\${STUB_NO_SFTP:-0}" = 1 ] && { echo "subsystem request failed on channel 0" >&2; echo "scp: Connection closed" >&2; exit 255; }
 while [ "\$1" != "--" ]; do shift; done; shift
 cp "\$1" "\${2#*:}"
@@ -213,6 +213,7 @@ run send work "$TW/My Notes.txt"
 check "failed send exits non-zero" equals "$?" "1"
 check "failed send copies local path" equals "$(clip)" "$TW/My Notes.txt"
 check "failed send notifies" contains "$(grep '^osascript' "$CALLS")" "send to work failed"
+check "a connection failure isn't retried over ssh" bash -c "! grep -q 'cat >' '$CALLS'"
 
 reset
 export STUB_NO_SFTP=1

@@ -55,6 +55,7 @@ First public release. **Shot Pill is now dotshot.**
 - AI naming always waited for its full 30-second timeout
 - Destinations without SFTP never received files
 - An interrupted transfer left a partial file under the real name
+- An unreachable destination waited for two timeouts instead of one
 - A `~` folder whose home lookup failed waited twice and copied a non-absolute path
 - Resize could produce a larger file
 - CRLF line endings or stray spaces in `destinations.tsv` broke delivery

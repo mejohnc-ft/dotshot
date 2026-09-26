@@ -52,7 +52,8 @@ func export(_ range: CMTimeRange) {
             }
         }
     } else {
-        DispatchQueue.global().async { legacyExport(session) }
+        nonisolated(unsafe) let legacy = session
+        DispatchQueue.global().async { legacyExport(legacy) }
     }
 }
 

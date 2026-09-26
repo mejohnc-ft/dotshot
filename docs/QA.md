@@ -18,6 +18,26 @@ DOTSHOT_E2E_HOST=you@host ./scripts/test.sh      # plus a real SSH delivery
 | `Tests/shell/capture_test.sh` | slug and file-name sanitizing, destination resolution and rejection of unsafe rows, send/image modes, `~` folder resolution, failure fallback to the local path, AppleScript-injection safety, cancelled captures |
 | `Tests/shell/e2e_delivery.sh` | real `scp` to a host, absolute remote path on the clipboard, remote content check, cleanup |
 
+### New-user setup against clean machines (Apple `container`)
+
+```bash
+container system kernel set --recommended     # once
+./scripts/qa/setup-qa.sh                       # KEEP=1 leaves the containers running
+```
+
+Starts two fresh Debian destinations as Linux VMs, with fresh host keys, key-only SSH, and nothing
+authorized. One has SFTP and one doesn't (`scripts/qa/destination/Containerfile`). It then walks through
+setup with the script inside a freshly built app, the way a new user would:
+- unknown host key, fingerprint comparison, unauthorized key, then authorizing it;
+- `add`/`check`, a private folder, first delivery, collisions, and hostile names;
+- shared and unwritable folders;
+- a server without SFTP;
+- the `dotshot-inbox` skill's commands;
+- a machine going offline.
+
+The report is written to `build/qa-container/report.md`. Your dotshot settings aren't touched. The
+containers' host keys are removed from `~/.ssh/known_hosts` afterwards.
+
 ## Manual checklist
 
 Use a Mac user account where dotshot has never run, if possible. `DOTSHOT_CONFIG_DIR`
@@ -85,4 +105,5 @@ Tested on macOS 26.6.1 (Apple M5 Max), two displays.
 | Launch smoke test (isolated config) | Pass: runs as an accessory app, no crash reports, only system noise in the log |
 | Visual review of every window (pill expanded, collapsed, and drop; recording picker; all 8 setup steps) | Pass after fixes: gray pill buttons, truncated sidebar labels, drop-tile layout and mapping, slider tint, picker alignment, callout widths, contrast, pill height |
 | Found and fixed in QA | Wrong minimum macOS, host-only architecture, AppleScript injection in notifications, SSH password-prompt hangs, trailing `-` in sent names, notifications shown as Script Editor, off-screen pill after a display change |
+| New-user setup QA (`scripts/qa/setup-qa.sh`, 2026-09-26) | Pass: 31/31 against clean Debian destinations in Apple `container` 1.2.2 on macOS 26.6.1. It found two bugs, both now fixed: an unreachable host was retried over ssh (20 s instead of 10 s), because `scp -q` hid the connection error; and a long SSH connection-reuse window outlived a host going offline. |
 | Manual GUI checklist above | **Not yet run.** Needs a person to click through permission, Test, capture, recording, drag and drop, and migration on the release DMG. |

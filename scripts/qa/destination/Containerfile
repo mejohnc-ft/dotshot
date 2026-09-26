@@ -1,0 +1,17 @@
+# A clean destination machine for testing dotshot setup: Debian, OpenSSH with keys only, a fresh "dev"
+# account with nothing authorized yet, and ffmpeg for the dotshot-inbox skill's frame extraction.
+# Build with --build-arg NO_SFTP=1 for a server without the SFTP subsystem.
+FROM debian:bookworm-slim
+ARG NO_SFTP=0
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends openssh-server ffmpeg \
+ && rm -rf /var/lib/apt/lists/* \
+ && mkdir -p /run/sshd \
+ && useradd -m -s /bin/bash dev \
+ && usermod -p '*' dev \
+ && sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config \
+ && if [ "$NO_SFTP" = 1 ]; then sed -i '/^Subsystem/d' /etc/ssh/sshd_config; fi \
+ && rm -f /etc/ssh/ssh_host_*
+EXPOSE 22
+# Fresh host keys per container, like a newly installed machine.
+CMD ["/bin/sh", "-c", "ssh-keygen -A >/dev/null && exec /usr/sbin/sshd -D -e"]

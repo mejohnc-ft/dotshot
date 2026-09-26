@@ -41,9 +41,10 @@ TS="$(date +%Y%m%d-%H%M%S)"
 # Host keys must already be known; a stalled link gives up after ~30 s instead of hanging.
 SSH_OPTS=(-o BatchMode=yes -o StrictHostKeyChecking=yes -o "ConnectTimeout=$SSH_TIMEOUT"
           -o ServerAliveInterval=10 -o ServerAliveCountMax=3)
-# Reuse one SSH connection for the upload and the rename that follows it.
+# Reuse one SSH connection for the upload and the rename that follows it. Kept short on purpose: a
+# long-lived master outlives a machine going offline, and the next send would wait on the dead link.
 if [ -d "$HOME/.ssh" ] && [ -z "${DOTSHOT_TEST_BIN:-}" ]; then
-  SSH_OPTS+=(-o ControlMaster=auto -o "ControlPath=$HOME/.ssh/dotshot-%C" -o ControlPersist=60)
+  SSH_OPTS+=(-o ControlMaster=auto -o "ControlPath=$HOME/.ssh/dotshot-%C" -o ControlPersist=5)
 fi
 
 prepare_shots() {
@@ -239,6 +240,14 @@ fail_delivery() {
   return 1
 }
 
+# True when scp reached the destination but it has no SFTP subsystem. scp ends every failure with
+# "Connection closed", so connection problems are ruled out first; retrying those would only wait again.
+sftp_refused() {
+  grep -qi 'subsystem request failed' "$1" && return 0
+  grep -qiE 'timed out|refused|no route|host is down|could not resolve|nodename|permission denied|host key|unreachable' "$1" && return 1
+  grep -qi 'connection closed' "$1"
+}
+
 # Copies $1 to the destination as $2 (a safe name) and puts the absolute remote path on the clipboard.
 # The upload goes to a hidden temporary name and is renamed on the destination, so an interrupted
 # transfer never leaves a partial file under the real name and an existing file is never replaced.
@@ -250,11 +259,12 @@ deliver() {
   fi
   part=".$name.$RANDOM$RANDOM.part"
   log "sending '$file' → $DEST_SSH:$remote_dir/$name"
-  if ! scp -q "${SSH_OPTS[@]}" -- "$file" "$DEST_SSH:$remote_dir/$part" 2>"$err"; then
+  # No -q: it would hide ssh's own error (timed out, host down), which tells a dead host from missing SFTP.
+  if ! scp "${SSH_OPTS[@]}" -- "$file" "$DEST_SSH:$remote_dir/$part" 2>"$err" >/dev/null; then
     cat "$err" >> "$LOG"
     # No SFTP subsystem on the destination: stream the file through ssh instead (never `scp -O`,
     # whose legacy protocol lets the remote shell expand the path).
-    if grep -qiE 'subsystem request failed|connection closed' "$err" \
+    if sftp_refused "$err" \
       && ssh "${SSH_OPTS[@]}" -- "$DEST_SSH" "sh -c $(q "cat > $(q "$remote_dir/$part")")" < "$file" 2>>"$LOG"; then
       log "delivered over ssh (no SFTP on the destination)"
     else
