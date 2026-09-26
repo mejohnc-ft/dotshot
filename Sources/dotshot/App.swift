@@ -145,11 +145,57 @@ let PRESETS: [Color] = [
     Color(red: 0.170, green: 0.180, blue: 0.200),  // graphite
 ]
 
-// Black or white text, whichever reads better on the given accent.
+/// Dark ink for text on light fills: the gold family reads far better with it than with white.
+let INK = Color(red: 0.106, green: 0.082, blue: 0.0)
+
+/// Secondary text that stays readable in light and dark mode (the system secondary style washes out on
+/// the translucent light backgrounds dotshot uses).
+let SECONDARY_TEXT = Color.primary.opacity(0.68)
+
+/// A color with separate light- and dark-mode values.
+func adaptive(light: NSColor, dark: NSColor) -> Color {
+    Color(nsColor: NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.darkAqua, .vibrantDark]) != nil ? dark : light
+    })
+}
+/// Test results: the system green and orange are too light to read on white.
+let STATUS_OK = adaptive(light: NSColor(srgbRed: 0.10, green: 0.46, blue: 0.20, alpha: 1), dark: NSColor(srgbRed: 0.19, green: 0.82, blue: 0.35, alpha: 1))
+let STATUS_WARN = adaptive(light: NSColor(srgbRed: 0.62, green: 0.30, blue: 0.0, alpha: 1), dark: NSColor(srgbRed: 1.0, green: 0.62, blue: 0.04, alpha: 1))
+
+/// Dark ink or white, whichever has the higher WCAG contrast against the fill.
 func idealText(on c: Color) -> Color {
     let ns = NSColor(c).usingColorSpace(.sRGB) ?? .white
-    let lum = 0.299 * ns.redComponent + 0.587 * ns.greenComponent + 0.114 * ns.blueComponent
-    return lum > 0.62 ? .black : .white
+    func linear(_ v: CGFloat) -> CGFloat { v <= 0.04045 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4) }
+    let l = 0.2126 * linear(ns.redComponent) + 0.7152 * linear(ns.greenComponent) + 0.0722 * linear(ns.blueComponent)
+    let againstWhite = 1.05 / (l + 0.05), againstInk = (l + 0.05) / 0.056
+    return againstInk >= againstWhite ? INK : .white
+}
+
+/// The prominent button style for setup, with text chosen for contrast. The system's prominent style
+/// always draws white text, which is too faint on dotshot's lighter accents.
+struct AccentButtonStyle: ButtonStyle {
+    let color: Color
+
+    func makeBody(configuration: Configuration) -> some View {
+        Styled(configuration: configuration, color: color)
+    }
+
+    private struct Styled: View {
+        let configuration: ButtonStyleConfiguration
+        let color: Color
+        @Environment(\.isEnabled) private var isEnabled
+
+        var body: some View {
+            configuration.label
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(idealText(on: color))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(RoundedRectangle(cornerRadius: 7).fill(color))
+                .contentShape(RoundedRectangle(cornerRadius: 7))
+                .opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1) : 0.45)
+        }
+    }
 }
 
 /// Interactive captures in progress; a second shortcut press while one runs is ignored.
@@ -315,7 +361,7 @@ struct RecordingSourceCard: View {
                         .frame(width: 94, height: 58)
                     Image(systemName: "viewfinder")
                         .font(.system(size: 24, weight: .medium))
-                        .foregroundStyle(selected ? accent : Color.secondary)
+                        .foregroundStyle(selected ? accent : SECONDARY_TEXT)
                 } else {
                     VStack(spacing: 3) {
                         RoundedRectangle(cornerRadius: 7)
@@ -357,14 +403,14 @@ struct RecordingSourceCard: View {
                     .lineLimit(1)
                 Text(source.resolution)
                     .font(.system(size: 11, weight: .medium, design: .monospaced))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(SECONDARY_TEXT)
             }
 
             if source.isMain {
                 Text("MAIN")
                     .font(.system(size: 9, weight: .bold))
                     .tracking(0.8)
-                    .foregroundStyle(selected ? idealText(on: accent) : Color.secondary)
+                    .foregroundStyle(selected ? idealText(on: accent) : SECONDARY_TEXT)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
                     .background(selected ? accent : Color.secondary.opacity(0.14), in: Capsule())
@@ -421,7 +467,7 @@ struct RecordingPickerView: View {
                         .font(.system(size: 20, weight: .bold))
                     Text("The finished recording will be named and sent to \(dest).")
                         .font(.system(size: 12.5))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(SECONDARY_TEXT)
                 }
                 Spacer()
                 Button(action: onCancel) {
@@ -430,7 +476,7 @@ struct RecordingPickerView: View {
                         .frame(width: 26, height: 26)
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(SECONDARY_TEXT)
                 .background(Color.primary.opacity(0.07), in: Circle())
             }
 
@@ -447,10 +493,10 @@ struct RecordingPickerView: View {
 
             HStack(spacing: 10) {
                 Image(systemName: "stop.circle")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(SECONDARY_TEXT)
                 Text("Stop recording with ⌘⌃Esc")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(SECONDARY_TEXT)
                 Spacer()
                 Button("Cancel", action: onCancel)
                     .keyboardShortcut(.cancelAction)
@@ -463,8 +509,7 @@ struct RecordingPickerView: View {
                         .padding(.horizontal, 6)
                 }
                 .keyboardShortcut(.defaultAction)
-                .buttonStyle(.borderedProminent)
-                .tint(accent)
+                .buttonStyle(AccentButtonStyle(color: accent))
                 .foregroundStyle(idealText(on: accent))
             }
         }
@@ -791,7 +836,7 @@ struct PillView: View {
         let columns = DropGrid.columns(for: tiles.count)
         return VStack(spacing: 6) {
             if tiles.isEmpty {
-                Text("Add a destination in setup").font(.system(size: 13, weight: .semibold)).foregroundStyle(.secondary)
+                Text("Add a destination in setup").font(.system(size: 13, weight: .semibold)).foregroundStyle(SECONDARY_TEXT)
             }
             ForEach(0..<DropGrid.rows(for: tiles.count), id: \.self) { row in
                 HStack(spacing: 6) {
@@ -861,9 +906,9 @@ struct PillView: View {
                 } label: {
                     Image(systemName: "gearshape.fill").font(.system(size: 13))
                 }
-                .buttonStyle(.plain).foregroundStyle(.secondary)
+                .buttonStyle(.plain).foregroundStyle(SECONDARY_TEXT)
                 Button { NSApp.terminate(nil) } label: { Image(systemName: "xmark.circle.fill").font(.system(size: 14)) }
-                    .buttonStyle(.plain).foregroundStyle(.secondary)
+                    .buttonStyle(.plain).foregroundStyle(SECONDARY_TEXT)
             }
             HStack(spacing: 10) {
                 BigButton(title: "Shot", icon: "camera.fill", filled: true,  color: accent) { runCapture("image", dest) }
@@ -881,12 +926,12 @@ struct PillView: View {
                 Spacer()
                 Text("⌃⌥⌘S Shot  ·  ⌃⌥⌘V Vid")
                     .font(.system(size: 9.5, weight: .medium))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(SECONDARY_TEXT)
             }
             if !gallery.items.isEmpty {
                 Text(copied.isEmpty ? "RECENT — click to copy name" : "Copied \(copied)")
                     .font(.system(size: 10.5, weight: .semibold))
-                    .foregroundStyle(copied.isEmpty ? Color.secondary : accent)
+                    .foregroundStyle(copied.isEmpty ? SECONDARY_TEXT : accent)
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 7) {
                         ForEach(gallery.items) { it in
@@ -1025,7 +1070,7 @@ struct SetupView: View {
                     .background(Color.primary.opacity(0.07), in: Circle())
             }
             .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(SECONDARY_TEXT)
             .keyboardShortcut(.cancelAction)
             .padding(18)
         }
@@ -1042,7 +1087,7 @@ struct SetupView: View {
                     .background(accent, in: Circle())
                 VStack(alignment: .leading, spacing: 0) {
                     Text("dotshot").font(.system(size: 15, weight: .bold))
-                    Text("SETUP · v\(Brand.version)").font(.system(size: 9, weight: .bold)).tracking(1.2).foregroundStyle(.secondary)
+                    Text("SETUP · v\(Brand.version)").font(.system(size: 9, weight: .bold)).tracking(1.2).foregroundStyle(SECONDARY_TEXT)
                 }
             }
             .padding(.bottom, 16)
@@ -1071,17 +1116,17 @@ struct SetupView: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(step == item ? Color.primary : Color.secondary)
+                .foregroundStyle(step == item ? Color.primary : SECONDARY_TEXT)
             }
             Spacer()
             Text("Settings can be reopened from the gear on the expanded pill.")
                 .font(.system(size: 10.5))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(SECONDARY_TEXT)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(24)
         .frame(width: 236)
-        .background(Color.black.opacity(0.10))
+        .background(Color.primary.opacity(0.06))
     }
 
     @ViewBuilder private var stepContent: some View {
@@ -1115,11 +1160,11 @@ struct SetupView: View {
                 flowCard("1", "Capture", "Take a screenshot or recording from any app.", "camera.viewfinder")
                 Image(systemName: "arrow.right")
                     .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(Color.primary.opacity(0.5))
                 flowCard("2", "Deliver", "dotshot names it and sends it over SSH.", "paperplane.fill")
                 Image(systemName: "arrow.right")
                     .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(Color.primary.opacity(0.5))
                 flowCard("3", "Use", "The remote path is copied, ready for your agent.", "terminal.fill")
             }
             callout(
@@ -1144,7 +1189,7 @@ struct SetupView: View {
                         ? "dotshot can capture your selected screen content."
                         : "Approve dotshot in Privacy & Security → Screen & System Audio Recording.")
                         .font(.system(size: 12.5))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(SECONDARY_TEXT)
                 }
             }
             .padding(18)
@@ -1157,8 +1202,7 @@ struct SetupView: View {
                         screenPermission = CGPreflightScreenCaptureAccess()
                     }
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(accent)
+                .buttonStyle(AccentButtonStyle(color: accent))
                 Button("Check Again") {
                     screenPermission = CGPreflightScreenCaptureAccess()
                 }
@@ -1170,7 +1214,7 @@ struct SetupView: View {
             }
             Text("macOS may ask you to quit and reopen dotshot after approval. If the status does not change, relaunch dotshot and press Check Again.")
                 .font(.system(size: 11.5))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(SECONDARY_TEXT)
         }
     }
 
@@ -1209,14 +1253,12 @@ struct SetupView: View {
                             confirmation: "Key creation command copied"
                         )
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(accent)
+                    .buttonStyle(AccentButtonStyle(color: accent))
                 } else {
                     Button("Copy Public Key") {
                         copyPublicKey()
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(accent)
+                    .buttonStyle(AccentButtonStyle(color: accent))
                 }
                 Button("Open Terminal") { openTerminal() }
                 Button("Refresh") {
@@ -1235,10 +1277,10 @@ struct SetupView: View {
             )
             Text("Tailscale: use the destination’s MagicDNS name or 100.x address. Both devices must share a tailnet, with regular SSH or Tailscale SSH enabled on the destination.")
                 .font(.system(size: 11.5))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(SECONDARY_TEXT)
             Text("Next, enter the address and press Test. If the key is rejected, dotshot offers an authorization command that asks for the destination password once.")
                 .font(.system(size: 11.5))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(SECONDARY_TEXT)
         }
     }
 
@@ -1257,7 +1299,7 @@ struct SetupView: View {
                 }
                 .font(.system(size: 9.5, weight: .bold))
                 .tracking(0.6)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(SECONDARY_TEXT)
 
                 ForEach(draftDestinations.indices, id: \.self) { index in
                     HStack(spacing: 8) {
@@ -1282,7 +1324,7 @@ struct SetupView: View {
                             Image(systemName: "minus.circle.fill")
                         }
                         .buttonStyle(.plain)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(SECONDARY_TEXT)
                         .disabled(draftDestinations.count == 1)
                     }
                     .textFieldStyle(.roundedBorder)
@@ -1299,7 +1341,7 @@ struct SetupView: View {
                             Spacer()
                             Text(status)
                                 .font(.system(size: 10.5, weight: .medium))
-                                .foregroundStyle(status.hasPrefix("Ready") ? Color.green : (status == "Testing…" ? Color.secondary : Color.orange))
+                                .foregroundStyle(status.hasPrefix("Ready") ? STATUS_OK : (status == "Testing…" ? SECONDARY_TEXT : STATUS_WARN))
                         }
                     }
                 }
@@ -1319,8 +1361,7 @@ struct SetupView: View {
                         .foregroundStyle(saveMessage == "Saved" ? Color.green : Color.orange)
                 }
                 Button("Save") { saveDestinations() }
-                    .buttonStyle(.borderedProminent)
-                    .tint(accent)
+                    .buttonStyle(AccentButtonStyle(color: accent))
             }
             callout(
                 "Test before continuing",
@@ -1346,8 +1387,7 @@ struct SetupView: View {
                 } label: {
                     Label("Take Test Shot", systemImage: "camera.fill")
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(accent)
+                .buttonStyle(AccentButtonStyle(color: accent))
                 Button("Open Local Shots") {
                     NSWorkspace.shared.open(URL(fileURLWithPath: SHOTS))
                 }
@@ -1372,7 +1412,7 @@ struct SetupView: View {
                     Text(loginStatusText).font(.system(size: 16, weight: .semibold))
                     Text("macOS keeps the final approval under System Settings → General → Login Items.")
                         .font(.system(size: 12.5))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(SECONDARY_TEXT)
                 }
             }
             .padding(18)
@@ -1382,8 +1422,7 @@ struct SetupView: View {
                 Button(loginStatus == .enabled ? "Disable Launch at Login" : "Enable Launch at Login") {
                     updateLoginItem(enable: loginStatus != .enabled)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(accent)
+                .buttonStyle(AccentButtonStyle(color: accent))
                 Button("Open Login Items") {
                     SMAppService.openSystemSettingsLoginItems()
                 }
@@ -1400,7 +1439,7 @@ struct SetupView: View {
         VStack(alignment: .leading, spacing: 22) {
             setupHeading("Make it yours", "Choose the accent, display, corner, and edge inset for the collapsed camera nub.")
             VStack(alignment: .leading, spacing: 10) {
-                Text("ACCENT").font(.system(size: 10, weight: .bold)).tracking(0.8).foregroundStyle(.secondary)
+                Text("ACCENT").font(.system(size: 10, weight: .bold)).tracking(0.8).foregroundStyle(SECONDARY_TEXT)
                 HStack(spacing: 10) {
                     ForEach(Array(PRESETS.enumerated()), id: \.offset) { index, color in
                         Circle()
@@ -1414,7 +1453,7 @@ struct SetupView: View {
             }
             HStack(alignment: .top, spacing: 26) {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("DISPLAY").font(.system(size: 10, weight: .bold)).tracking(0.8).foregroundStyle(.secondary)
+                    Text("DISPLAY").font(.system(size: 10, weight: .bold)).tracking(0.8).foregroundStyle(SECONDARY_TEXT)
                     Picker("", selection: $displayName) {
                         ForEach(NSScreen.screens, id: \.localizedName) { screen in
                             Text(screen.localizedName).tag(screen.localizedName)
@@ -1425,7 +1464,7 @@ struct SetupView: View {
                     .frame(width: 230, alignment: .leading)
                 }
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("CORNER").font(.system(size: 10, weight: .bold)).tracking(0.8).foregroundStyle(.secondary)
+                    Text("CORNER").font(.system(size: 10, weight: .bold)).tracking(0.8).foregroundStyle(SECONDARY_TEXT)
                     HStack(spacing: 8) {
                         cornerButton("topLeft", "arrow.up.left")
                         cornerButton("topRight", "arrow.up.right")
@@ -1436,9 +1475,9 @@ struct SetupView: View {
             }
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Text("EDGE INSET").font(.system(size: 10, weight: .bold)).tracking(0.8).foregroundStyle(.secondary)
+                    Text("EDGE INSET").font(.system(size: 10, weight: .bold)).tracking(0.8).foregroundStyle(SECONDARY_TEXT)
                     Spacer()
-                    Text("\(Int(inset)) px").font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
+                    Text("\(Int(inset)) px").font(.system(size: 11, design: .monospaced)).foregroundStyle(SECONDARY_TEXT)
                 }
                 Slider(value: $inset, in: 0...48, step: 2)
                     .tint(accent)
@@ -1475,10 +1514,9 @@ struct SetupView: View {
             Spacer()
             Text("\(step.rawValue + 1) of \(SetupStep.allCases.count)")
                 .font(.system(size: 11, design: .monospaced))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(SECONDARY_TEXT)
             Button(step == .done ? "Finish" : "Continue") { advance() }
-                .buttonStyle(.borderedProminent)
-                .tint(accent)
+                .buttonStyle(AccentButtonStyle(color: accent))
                 .keyboardShortcut(.defaultAction)
         }
     }
@@ -1486,7 +1524,7 @@ struct SetupView: View {
     private func setupHeading(_ title: String, _ subtitle: String) -> some View {
         VStack(alignment: .leading, spacing: 7) {
             Text(title).font(.system(size: 25, weight: .bold))
-            Text(subtitle).font(.system(size: 13.5)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            Text(subtitle).font(.system(size: 13.5)).foregroundStyle(SECONDARY_TEXT).fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -1506,7 +1544,7 @@ struct SetupView: View {
             Text(title).font(.system(size: 14.5, weight: .semibold))
             Text(subtitle)
                 .font(.system(size: 11.5))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(SECONDARY_TEXT)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(15)
@@ -1518,7 +1556,7 @@ struct SetupView: View {
         VStack(alignment: .leading, spacing: 9) {
             Image(systemName: icon).font(.system(size: 24)).foregroundStyle(accent)
             Text(title).font(.system(size: 15, weight: .semibold))
-            Text(subtitle).font(.system(size: 11.5)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            Text(subtitle).font(.system(size: 11.5)).foregroundStyle(SECONDARY_TEXT).fixedSize(horizontal: false, vertical: true)
         }
         .padding(18)
         .frame(maxWidth: .infinity, minHeight: 132, alignment: .topLeading)
@@ -1530,7 +1568,7 @@ struct SetupView: View {
             Image(systemName: icon).font(.system(size: 16, weight: .semibold)).foregroundStyle(accent).frame(width: 24)
             VStack(alignment: .leading, spacing: 3) {
                 Text(title).font(.system(size: 12.5, weight: .semibold))
-                Text(text).font(.system(size: 11.5)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                Text(text).font(.system(size: 11.5)).foregroundStyle(SECONDARY_TEXT).fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(14)
@@ -1554,7 +1592,7 @@ struct SetupView: View {
             Image(systemName: icon).foregroundStyle(accent).frame(width: 24)
             Text(title).font(.system(size: 13, weight: .medium))
             Spacer()
-            Text(value).font(.system(size: 12, design: .monospaced)).foregroundStyle(.secondary)
+            Text(value).font(.system(size: 12, design: .monospaced)).foregroundStyle(SECONDARY_TEXT)
         }
         .padding(.vertical, 4)
     }
@@ -1567,7 +1605,7 @@ struct SetupView: View {
                 .font(.system(size: 15, weight: .semibold))
                 .frame(width: 34, height: 30)
                 .background(position == value ? accent : Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
-                .foregroundStyle(position == value ? idealText(on: accent) : Color.secondary)
+                .foregroundStyle(position == value ? idealText(on: accent) : SECONDARY_TEXT)
         }
         .buttonStyle(.plain)
     }
