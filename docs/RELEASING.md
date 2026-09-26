@@ -71,8 +71,13 @@ Source: GitHub Actions**.
 ```bash
 ./scripts/docs/capture-media.sh     # raw window captures from an isolated demo build
 ./scripts/docs/compose-media.sh     # docs/images/* and site/images/*
-./scripts/docs/make-demo.sh         # docs/images/demo.gif and demo.mp4
+./scripts/docs/make-demo.sh         # docs/images/demo.gif and demo.mp4 (README loop)
+./scripts/docs/make-intro.sh        # docs/images/intro.mp4, the 55 s intro (Node.js + ffmpeg)
 ```
+
+`make-intro.sh --stills` renders a frame every two seconds for a quick review.
+The intro's scenes live in `scripts/docs/intro.html`; open it in a browser with
+`#t=<seconds>` to preview a single moment.
 
 Your terminal app needs Screen Recording permission, and Google Chrome must be
 installed. These scripts never read your own dotshot settings.

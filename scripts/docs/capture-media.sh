@@ -82,6 +82,30 @@ for step in welcome permissions connect destinations test login appearance done;
   shoot "setup-$step" 800 DOTSHOT_DEMO_STATE=collapsed DOTSHOT_DEMO_SETUP="$step"
 done
 
+# The intro video switches destinations, so it needs the pill pointed at another machine too.
+defaults write "$DEMO_ID" dotshot.dest gpu
+shoot pill-expanded-gpu 400 DOTSHOT_DEMO_STATE=expanded
+defaults write "$DEMO_ID" dotshot.dest work
+pkill -f "$APP/Contents/MacOS/dotshot" 2>/dev/null || true
+
+echo "==> post-recording panel"
+DOTSHOT_CAPTURABLE=1 "$APP/Contents/Resources/panel" "Recording ready" "Send as-is, trim in QuickTime, or resize smaller." 0 "Send,Trim,Resize" "$WORK/Shots" >/dev/null 2>&1 &
+panel_pid=$!
+window=""
+for attempt in $(seq 1 30); do
+  sleep 0.3
+  window="$("$WORK/window-ids" "$panel_pid" | awk '$2 >= 300 { print $1; exit }')"
+  [ -n "$window" ] && break
+done
+sleep 1.5
+if [ -n "$window" ]; then
+  screencapture -x -o -l "$window" "$OUT/recording-ready.png" && echo "    recording-ready.png"
+else
+  echo "no window for recording-ready" >&2
+fi
+kill "$panel_pid" 2>/dev/null || true
+wait "$panel_pid" 2>/dev/null || true
+
 pkill -f "$APP/Contents/MacOS/dotshot" 2>/dev/null || true
 defaults delete "$DEMO_ID" >/dev/null 2>&1 || true
 echo "Raw captures: $OUT"

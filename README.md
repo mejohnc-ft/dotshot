@@ -17,7 +17,7 @@ There's no save dialog, no file naming, no upload, and no hunting for the file
 on the other machine. There's also no account, cloud inbox, receiving service,
 telemetry, or API key.
 
-[**Download for macOS**](https://github.com/mejohnc-ft/dotshot/releases/latest) · [Install guide](docs/INSTALL.md) · [SSH setup](docs/SSH_SETUP.md) · [Troubleshooting](docs/TROUBLESHOOTING.md)
+[**Download for macOS**](https://github.com/mejohnc-ft/dotshot/releases/latest) · [**Watch the 55-second intro**](https://mejohnc-ft.github.io/dotshot/#intro) · [Walkthrough](docs/WALKTHROUGH.md) · [Install guide](docs/INSTALL.md) · [SSH setup](docs/SSH_SETUP.md) · [Troubleshooting](docs/TROUBLESHOOTING.md)
 
 ## Why
 
@@ -59,10 +59,6 @@ Linux destination you can SSH into with a key.
 If macOS says it can't verify the app, see
 [Opening dotshot the first time](docs/INSTALL.md#opening-dotshot-the-first-time).
 To build from source instead, see [Build from source](docs/INSTALL.md#build-from-source).
-
-**Upgrading from Shot Pill?** dotshot is the new name. The first launch imports
-your destinations and preferences and quits the old app. See
-[Migrating from Shot Pill](docs/INSTALL.md#migrating-from-shot-pill).
 
 ## Set up in five minutes
 
@@ -134,16 +130,15 @@ or alias, remote folder). You can edit it by hand. See
 
 Other tools solve part of this, and one of them may suit you better:
 
-- [clipbridge](https://github.com/skeptrunedev/clipbridge) lets you press Ctrl+V for a clipboard image inside Claude Code or Codex on a Linux host.
-- [clipssh](https://github.com/samuellawrentz/clipssh), [clipport](https://github.com/arihantsethia/clipport), and [claude-screenshot-uploader](https://github.com/mdrzn/claude-screenshot-uploader) upload a clipboard image or screenshot to one server and copy the path.
+- [clipbridge](https://github.com/skeptrunedev/clipbridge) lets you press Ctrl+V for a clipboard image inside Claude Code or Codex on Linux hosts.
+- [clipssh](https://github.com/samuellawrentz/clipssh), [clipport](https://github.com/arihantsethia/clipport), and [claude-screenshot-uploader](https://github.com/mdrzn/claude-screenshot-uploader) upload a clipboard image or screenshot over SSH and copy the remote path. Most support several hosts.
 - The VS Code Remote-SSH image-paste extensions do the same inside the editor's terminal.
 
-dotshot is for people who run agents on **several machines**. It's a native app
-with named destinations you switch between, screen recordings as well as
-screenshots, OCR file names an agent can make sense of, drag-and-drop for any
-file, and a setup that tests and diagnoses each SSH connection. Under the hood
-it's `screencapture` plus `scp` on purpose: nothing new runs on your
-destinations.
+dotshot goes further than getting an image across: it sends **screen recordings**
+and **any file** too, names captures after what's on screen, and lets you pick the
+machine per capture from a native pill, drop tiles, or a `dotshot://` URL. Setup
+tests each connection and says what to fix. Under the hood it's `screencapture`
+plus `scp` on purpose, so nothing new runs on your destinations.
 
 ## Privacy and security
 
@@ -162,7 +157,11 @@ network access of its own. See [SECURITY.md](SECURITY.md).
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md), [docs/QA.md](docs/QA.md), and
-[docs/RELEASING.md](docs/RELEASING.md).
+[docs/RELEASING.md](docs/RELEASING.md). Screenshots and videos are generated from
+the real app by the scripts in `scripts/docs/` (see [Refreshing screenshots and the demo](docs/RELEASING.md#refreshing-screenshots-and-the-demo)).
+
+dotshot was previously called Shot Pill. The first launch of dotshot imports Shot
+Pill's settings; see [Migrating from Shot Pill](docs/INSTALL.md#migrating-from-shot-pill).
 
 ## License
 

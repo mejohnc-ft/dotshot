@@ -171,7 +171,8 @@ let window = NSWindow(contentViewController: hosting)
 window.styleMask = [.titled, .fullSizeContentView]
 window.titlebarAppearsTransparent = true
 window.titleVisibility = .hidden
-window.sharingType = .none          // excluded from screenshots & screen recordings
+// Excluded from screenshots & screen recordings; DOTSHOT_CAPTURABLE=1 allows docs captures.
+window.sharingType = ProcessInfo.processInfo.environment["DOTSHOT_CAPTURABLE"] == "1" ? .readOnly : .none
 window.isMovableByWindowBackground = true
 window.center()
 window.makeKeyAndOrderFront(nil)

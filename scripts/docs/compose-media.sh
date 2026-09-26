@@ -31,7 +31,9 @@ chrome_shot "file://$ROOT/scripts/docs/sample-shots.html#settings" 1280 800 "$WO
 
 # layout:css-width:css-height:scale — large setup windows render at 1.5x to stay light.
 for spec in hero:1200:675:2 pill:1200:560:2 drop:1000:560:2 picker:1080:640:2 \
-            setup-welcome:1040:780:1.5 setup-connect:1040:780:1.5 setup-destinations:1040:780:1.5; do
+            setup-welcome:1040:780:1.5 setup-permissions:1040:780:1.5 setup-connect:1040:780:1.5 \
+            setup-destinations:1040:780:1.5 setup-test:1040:780:1.5 setup-login:1040:780:1.5 \
+            setup-appearance:1040:780:1.5 setup-done:1040:780:1.5 recording-ready:800:560:2; do
   IFS=: read -r layout width height scale <<< "$spec"
   case "$layout" in
     drop) name="drop-targets" ;;
@@ -50,14 +52,20 @@ shrink() {
     -vf "split[a][b];[a]palettegen=max_colors=256:stats_mode=full[p];[b][p]paletteuse=dither=sierra2_4a" "$tmp"
   mv "$tmp" "$file"
 }
+# 1200×630 social preview card (Open Graph / GitHub) from the hero, keeping the wordmark.
+ffmpeg -loglevel error -y -i "$IMAGES/hero.png" -vf "scale=1200:-1:flags=lanczos,crop=1200:630:0:45" "$IMAGES/og-image.png"
+echo "    docs/images/og-image.png"
+
 for file in "$IMAGES"/*.png; do shrink "$file"; done
+
 
 rm -f "$IMAGES/onboarding-welcome.png"
 
-for name in hero pill drop-targets recording-picker setup-welcome setup-connect setup-destinations; do
+for name in hero pill drop-targets recording-picker recording-ready og-image \
+            setup-welcome setup-permissions setup-connect setup-destinations setup-test setup-login setup-appearance setup-done; do
   cp "$IMAGES/$name.png" "$SITE_IMAGES/$name.png"
 done
-for name in demo.gif demo.mp4 demo-poster.png; do
+for name in demo.gif demo.mp4 demo-poster.png intro.mp4 intro-poster.png; do
   [ -f "$IMAGES/$name" ] && cp "$IMAGES/$name" "$SITE_IMAGES/$name"
 done
 cp "$RAW/pill-collapsed.png" "$SITE_IMAGES/nub.png"

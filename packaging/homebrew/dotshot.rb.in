@@ -7,7 +7,7 @@ cask "dotshot" do
   url "https://github.com/mejohnc-ft/dotshot/releases/download/v#{version}/dotshot-#{version}.dmg"
   name "dotshot"
   desc "Send screenshots and recordings to SSH machines and copy the remote path for agents"
-  homepage "https://github.com/mejohnc-ft/dotshot"
+  homepage "https://mejohnc-ft.github.io/dotshot/"
 
   depends_on macos: ">= :sonoma"
 

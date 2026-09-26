@@ -16,7 +16,7 @@ First public release. **Shot Pill is now dotshot.**
 - Setup opens automatically when a capture is triggered with no destination configured
 - Automated tests for the core logic and the capture script, an optional end-to-end SSH delivery test, and shellcheck in CI
 - Release workflow that signs and notarizes when credentials are configured and drafts a GitHub Release
-- Install, troubleshooting, QA, and release documentation, plus new screenshots and a demo
+- Install, troubleshooting, QA, and release documentation, a screen-by-screen walkthrough, new screenshots, a demo loop, and a 55-second intro video
 
 ### Changed
 - New name, bundle identifier (`com.mejohnc.dotshot`), URL scheme (`dotshot://`), and settings folder (`~/Library/Application Support/dotshot`)

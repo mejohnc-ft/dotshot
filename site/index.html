@@ -7,7 +7,17 @@
 <meta name="description" content="dotshot sends screenshots and recordings from your Mac to any SSH-connected machine and copies the remote path, ready for Claude Code, Codex, or any terminal agent.">
 <meta property="og:title" content="dotshot">
 <meta property="og:description" content="Capture here. Let your agents use it there. Screenshots and recordings delivered over SSH, with the remote path on your clipboard.">
-<meta property="og:image" content="images/hero.png">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://mejohnc-ft.github.io/dotshot/">
+<meta property="og:image" content="https://mejohnc-ft.github.io/dotshot/images/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="dotshot: a remote screenshot path pasted into a terminal agent, next to the dotshot pill">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="dotshot">
+<meta name="twitter:description" content="Screenshots and recordings from your Mac, delivered over SSH to the machine where your agent works. The remote path lands on your clipboard.">
+<meta name="twitter:image" content="https://mejohnc-ft.github.io/dotshot/images/og-image.png">
+<link rel="canonical" href="https://mejohnc-ft.github.io/dotshot/">
 <meta name="theme-color" content="#002b36">
 <link rel="icon" href="images/nub.png">
 <style>
@@ -103,6 +113,21 @@
   .demo { border-radius: 14px; overflow: hidden; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(238, 232, 213, 0.12); background: #001820; aspect-ratio: 16 / 9; }
   .demo video, .demo img { width: 100%; height: 100%; object-fit: cover; }
 
+  /* intro video */
+  .intro { background: #001a22; color: var(--hero-ink); padding-block: clamp(48px, 7vw, 88px); }
+  .intro .lede { color: var(--hero-muted); }
+  .intro .eyebrow { color: #e0b43c; }
+  .film { margin-top: 32px; border-radius: 16px; overflow: hidden; background: #000; aspect-ratio: 16 / 9; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(238, 232, 213, 0.12); }
+  .film video { width: 100%; height: 100%; }
+  .chapters { display: flex; flex-wrap: wrap; gap: 8px 10px; margin-top: 16px; padding: 0; list-style: none; }
+  .chapters button { font: 600 13px/1 ui-monospace, "SF Mono", Menlo, monospace; color: var(--hero-ink); background: rgba(238, 232, 213, 0.08); border: 1px solid rgba(238, 232, 213, 0.16); padding: 8px 12px; border-radius: 999px; cursor: pointer; }
+  .chapters button:hover { border-color: #e0b43c; color: #e0b43c; }
+  .chapters span { color: #e0b43c; margin-right: 6px; }
+
+  /* comparison */
+  .compare td:first-child { font-weight: 650; white-space: nowrap; }
+  .compare td.yes { color: var(--accent); font-weight: 700; }
+
   /* how it works */
   .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 40px; counter-reset: step; }
   .step { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; }
@@ -188,6 +213,7 @@
     <nav aria-label="Primary">
       <a class="brand" href="#top" id="top"><span class="dot" aria-hidden="true"></span>dotshot</a>
       <div class="links">
+        <a href="#intro" class="optional">Intro</a>
         <a href="#how" class="optional">How it works</a>
         <a href="#setup">Setup</a>
         <a href="#faq" class="optional">FAQ</a>
@@ -220,6 +246,27 @@
 </header>
 
 <main>
+<section class="intro" id="intro">
+  <div class="wrap">
+    <p class="eyebrow">55-second intro</p>
+    <h2>See the whole loop.</h2>
+    <p class="lede">A screenshot to a GPU box, a file to the NAS, and a recording to a Mac Studio, each pasted into the agent that needs it.</p>
+    <div class="film">
+      <video id="film" controls playsinline preload="none" poster="images/intro-poster.png"
+             aria-label="dotshot intro: the problem, a screenshot delivered to a GPU box, a file dropped on the NAS, a recording sent to a Mac, and setup">
+        <source src="images/intro.mp4" type="video/mp4">
+      </video>
+    </div>
+    <ul class="chapters" aria-label="Jump to a chapter">
+      <li><button data-t="4.4"><span>0:04</span>The problem</button></li>
+      <li><button data-t="14.4"><span>0:14</span>Screenshot</button></li>
+      <li><button data-t="29.4"><span>0:29</span>Any file</button></li>
+      <li><button data-t="37.4"><span>0:37</span>Recording</button></li>
+      <li><button data-t="46.9"><span>0:47</span>Setup</button></li>
+    </ul>
+  </div>
+</section>
+
   <section id="how">
     <div class="wrap">
       <p class="eyebrow">How it works</p>
@@ -268,11 +315,34 @@
     </div>
   </section>
 
-  <section id="setup">
+  <section id="compare">
+    <div class="wrap">
+      <p class="eyebrow">How it compares</p>
+      <h2>Other tools do part of this.</h2>
+      <p class="lede">Several good projects get a clipboard image to a remote agent, and some handle several hosts. If screenshots are all you need, one of them may suit you. dotshot adds recordings, any file, readable names, and a native app, and installs nothing on your machines.</p>
+      <div class="table-wrap">
+        <table class="compare">
+          <thead><tr><th scope="col"></th><th scope="col">dotshot</th><th scope="col">Clipboard-upload tools</th></tr></thead>
+          <tbody>
+            <tr><td>Several machines</td><td class="yes">Named destinations, switch from the pill</td><td class="yes">Most support several hosts</td></tr>
+            <tr><td>Screen recordings</td><td class="yes">Display or region, trim or resize</td><td>Images</td></tr>
+            <tr><td>Any file</td><td class="yes">Drag onto the nub, drop on a machine</td><td>Clipboard or screenshot folder</td></tr>
+            <tr><td>File names</td><td class="yes">From on-screen text, offline</td><td>Timestamps</td></tr>
+            <tr><td>Setup</td><td class="yes">Tests host, key, and folder per machine</td><td>Install script or CLI config</td></tr>
+            <tr><td>Paste with Ctrl+V inside the agent</td><td>No, you paste a path</td><td class="yes">Some do (clipbridge)</td></tr>
+            <tr><td>Runs on the destination</td><td class="yes">Nothing, just <code>scp</code></td><td>Varies: nothing, or a receiver (clipbridge)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="lede" style="margin-top:18px;font-size:15.5px">Worth a look: <a href="https://github.com/skeptrunedev/clipbridge">clipbridge</a>, <a href="https://github.com/samuellawrentz/clipssh">clipssh</a>, <a href="https://github.com/arihantsethia/clipport">clipport</a>, and <a href="https://github.com/mdrzn/claude-screenshot-uploader">claude-screenshot-uploader</a>.</p>
+    </div>
+  </section>
+
+  <section class="alt" id="setup">
     <div class="wrap">
       <p class="eyebrow">Get set up in 5 minutes</p>
       <h2>From download to your first delivered path.</h2>
-      <p class="lede">dotshot's guided setup walks through each of these steps. Here they are in advance, so you know what to expect.</p>
+      <p class="lede">dotshot's guided setup walks through each of these steps. Here they are in advance, so you know what to expect. For every screen, see the <a href="https://github.com/mejohnc-ft/dotshot/blob/main/docs/WALKTHROUGH.md">full walkthrough</a>.</p>
 
       <div class="setup-grid">
         <ol class="guide">
@@ -331,7 +401,7 @@
     </div>
   </section>
 
-  <section class="alt" id="automation">
+  <section id="automation">
     <div class="wrap">
       <p class="eyebrow">Automation</p>
       <h2>Trigger captures from anything.</h2>
@@ -353,7 +423,7 @@
     </div>
   </section>
 
-  <section id="privacy">
+  <section class="alt" id="privacy">
     <div class="wrap">
       <p class="eyebrow">Privacy</p>
       <h2>Your screen stays between your machines.</h2>
@@ -369,7 +439,7 @@
     </div>
   </section>
 
-  <section class="alt" id="faq">
+  <section id="faq">
     <div class="wrap">
       <p class="eyebrow">FAQ</p>
       <h2>Questions</h2>
@@ -411,9 +481,20 @@
     <span class="spacer"></span>
     <a href="https://github.com/mejohnc-ft/dotshot">GitHub</a>
     <a href="https://github.com/mejohnc-ft/dotshot/releases/latest">Releases</a>
+    <a href="https://github.com/mejohnc-ft/dotshot/blob/main/docs/WALKTHROUGH.md">Walkthrough</a>
     <a href="https://github.com/mejohnc-ft/dotshot/blob/main/LICENSE">MIT License</a>
   </div>
 </footer>
+
+<script>
+  document.querySelectorAll(".chapters button").forEach((button) => {
+    button.addEventListener("click", () => {
+      const film = document.getElementById("film");
+      film.currentTime = parseFloat(button.dataset.t);
+      film.play().catch(() => {});
+    });
+  });
+</script>
 
 </body>
 </html>

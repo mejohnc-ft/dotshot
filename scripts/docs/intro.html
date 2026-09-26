@@ -1,0 +1,466 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>dotshot intro</title>
+<!--
+  The ~55 s intro video. render-video.mjs calls window.render(t) for every frame; open with #t=<seconds> to preview one.
+  dotshot UI comes from real window captures in ./raw/ (capture-media.sh); desktops, notifications, and terminals are staged.
+-->
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 1280px; height: 720px; overflow: hidden; background: #001a22; }
+  body { font: 13px -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; color: #fdf6e3; -webkit-font-smoothing: antialiased; }
+  .scene { position: absolute; inset: 0; opacity: 0; }
+  .bg {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(900px 560px at 8% -5%, rgba(181, 137, 0, 0.26), transparent 60%),
+      radial-gradient(800px 560px at 100% 105%, rgba(42, 161, 152, 0.24), transparent 60%),
+      linear-gradient(160deg, #003340 0%, #002029 60%, #001820 100%);
+  }
+  .grid { position: absolute; inset: 0; background-image: radial-gradient(rgba(238, 232, 213, 0.07) 1px, transparent 1px); background-size: 22px 22px; }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+  .gold { color: #e0b43c; } .cyan { color: #2aa198; } .green { color: #859900; } .dim { color: #657b83; } .muted { color: #93a1a1; }
+
+  /* title + end cards */
+  .center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+  .mark { display: flex; align-items: center; gap: 22px; }
+  .mark .dot { width: 64px; height: 64px; border-radius: 50%; background: #b58900; box-shadow: 0 0 0 10px rgba(181, 137, 0, 0.25); }
+  .mark b { font-size: 84px; letter-spacing: -0.04em; font-weight: 750; }
+  .tagline { font-size: 30px; font-weight: 600; letter-spacing: -0.01em; margin-top: 26px; }
+  .sub { font-size: 19px; color: #93a1a1; margin-top: 14px; }
+  .urlpill { margin-top: 34px; font: 600 20px ui-monospace, "SF Mono", Menlo, monospace; padding: 12px 22px; border-radius: 999px; background: rgba(0, 20, 26, 0.7); box-shadow: 0 0 0 1px rgba(181, 137, 0, 0.55); }
+
+  /* problem scene */
+  .headline { position: absolute; left: 0; right: 0; top: 64px; text-align: center; font-size: 38px; font-weight: 700; letter-spacing: -0.025em; }
+  .node { position: absolute; width: 236px; padding: 14px 16px; border-radius: 14px; background: rgba(7, 54, 66, 0.9); box-shadow: 0 0 0 1px rgba(238, 232, 213, 0.14), 0 14px 30px rgba(0, 0, 0, 0.35); display: flex; gap: 12px; align-items: center; }
+  .node svg { flex: none; }
+  .node b { display: block; font-size: 17px; }
+  .node span { font-size: 13px; color: #93a1a1; }
+  .node .tag { margin-left: auto; font: 600 11px ui-monospace, Menlo, monospace; color: #1b1500; background: #e0b43c; padding: 3px 7px; border-radius: 6px; }
+  .me { left: 150px; top: 300px; width: 280px; padding: 20px; box-shadow: 0 0 0 2px #b58900, 0 18px 40px rgba(0, 0, 0, 0.4); }
+  .links { position: absolute; inset: 0; }
+  .thumb { position: absolute; width: 92px; height: 58px; border-radius: 6px; overflow: hidden; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5), 0 0 0 2px #fdf6e3; background: #fff; }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; object-position: left top; }
+  .qmark { position: absolute; width: 34px; height: 34px; border-radius: 50%; background: #dc322f; color: #fff; font: 800 21px/34px -apple-system, sans-serif; text-align: center; box-shadow: 0 6px 14px rgba(0, 0, 0, 0.4); }
+  .chores { position: absolute; left: 50%; top: 190px; width: 720px; margin-left: -360px; padding: 24px 28px; border-radius: 16px; background: #0b1419; box-shadow: 0 0 0 1px rgba(238, 232, 213, 0.12), 0 24px 60px rgba(0, 0, 0, 0.5); font: 20px/2 ui-monospace, "SF Mono", Menlo, monospace; color: #c9d1d9; }
+  .chores div { position: relative; opacity: 0; white-space: nowrap; }
+  .chores div i { font-style: normal; color: #657b83; margin-right: 14px; }
+  .chores div::after { content: ""; position: absolute; left: 30px; top: 50%; height: 2px; width: var(--strike, 0%); background: #e0b43c; }
+  .answer { position: absolute; left: 0; right: 0; top: 520px; text-align: center; font-size: 34px; font-weight: 700; letter-spacing: -0.02em; opacity: 0; }
+  .answer kbd { font: inherit; color: #e0b43c; }
+
+  /* desktop stage: authored at 960×540, scaled to the frame */
+  .stage { position: absolute; left: 0; top: 0; width: 960px; height: 540px; transform: scale(1.33334); transform-origin: 0 0; overflow: hidden; }
+  .menubar { position: absolute; left: 0; right: 0; top: 0; height: 22px; background: rgba(0, 20, 26, 0.55); color: #eee8d5; font-size: 12px; display: flex; align-items: center; gap: 16px; padding: 0 14px; z-index: 5; }
+  .menubar b { font-weight: 600; } .menubar .clock { margin-left: auto; opacity: 0.8; }
+  .rec { display: flex; align-items: center; gap: 6px; font: 600 11px ui-monospace, Menlo, monospace; color: #fff; background: #dc322f; padding: 2px 8px; border-radius: 5px; }
+  .rec::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #fff; }
+  .window { position: absolute; border-radius: 11px; overflow: hidden; box-shadow: 0 22px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08); }
+  .bar { height: 28px; display: flex; align-items: center; gap: 6px; padding: 0 11px; }
+  .bar i { width: 10px; height: 10px; border-radius: 50%; display: block; }
+  .light .bar { background: #e6e8eb; }
+  .light .bar i:nth-child(1) { background: #ff5f57; } .light .bar i:nth-child(2) { background: #febc2e; } .light .bar i:nth-child(3) { background: #28c840; }
+  .light .bar span { margin-left: 10px; flex: 1; height: 17px; border-radius: 5px; background: #fff; color: #6b7280; font-size: 10px; display: flex; align-items: center; padding-left: 8px; }
+  .browser { left: 40px; top: 48px; width: 560px; height: 400px; background: #f4f5f7; }
+  .browser img { width: 800px; display: block; }
+  .terminal { left: 300px; top: 90px; width: 620px; height: 300px; background: #0b1419; }
+  .terminal .bar { background: #16232a; color: #839496; font-size: 11px; }
+  .terminal .bar i { background: #3b4a52; }
+  .terminal .bar b { font-weight: 500; margin: 0 auto; transform: translateX(-20px); }
+  .term { padding: 14px 16px; font: 12.5px/1.65 ui-monospace, "SF Mono", Menlo, monospace; color: #c9d1d9; }
+  .path { color: #fdf6e3; background: rgba(181, 137, 0, 0.3); border-radius: 3px; padding: 0 3px; }
+  .caret { display: inline-block; width: 7px; height: 14px; background: #d4a72c; vertical-align: -2px; }
+  .nub { position: absolute; right: 18px; bottom: 16px; width: 56px; }
+  .pill { position: absolute; right: 18px; bottom: 16px; width: 380px; transform-origin: 100% 100%; }
+  .selection { position: absolute; border: 1px solid rgba(255, 255, 255, 0.9); box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.28); display: none; }
+  .selection em { position: absolute; right: -4px; bottom: -22px; transform: translateX(100%); font: 600 10px ui-monospace, Menlo, monospace; color: #fff; background: rgba(0, 0, 0, 0.55); padding: 2px 5px; border-radius: 4px; font-style: normal; }
+  .flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+  .ocr { position: absolute; padding: 9px 12px; border-radius: 10px; background: rgba(0, 20, 26, 0.92); box-shadow: 0 0 0 1px rgba(181, 137, 0, 0.6), 0 12px 30px rgba(0, 0, 0, 0.45); font: 12px/1.5 ui-monospace, "SF Mono", Menlo, monospace; color: #c9d1d9; white-space: nowrap; }
+  .ocr small { display: block; font: 700 9.5px -apple-system, sans-serif; letter-spacing: 0.12em; color: #e0b43c; margin-bottom: 3px; }
+  .notification {
+    position: absolute; right: 14px; top: 32px; width: 360px; padding: 11px 13px; border-radius: 16px; display: flex; gap: 10px; align-items: flex-start; z-index: 6;
+    background: rgba(40, 44, 48, 0.9); backdrop-filter: blur(20px); color: #f2f2f2; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4), 0 0 0 0.5px rgba(255, 255, 255, 0.2);
+  }
+  .notification img { width: 34px; height: 34px; }
+  .notification b { display: block; font-size: 13px; margin-bottom: 2px; }
+  .notification span { font-size: 12px; color: #d0d0d0; line-height: 1.35; word-break: break-all; }
+  .notification small { position: absolute; right: 13px; top: 11px; font-size: 11px; color: #9a9a9a; }
+  .cursor { position: absolute; width: 18px; height: 26px; z-index: 8; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.35)); }
+  .crosshair { position: absolute; width: 30px; height: 30px; margin: -15px 0 0 -15px; display: none; z-index: 8; }
+  .caption {
+    position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); white-space: nowrap; z-index: 7;
+    font: 600 13px/1 -apple-system, sans-serif; letter-spacing: 0.01em; color: #fdf6e3;
+    background: rgba(0, 20, 26, 0.82); padding: 9px 15px; border-radius: 999px; box-shadow: 0 0 0 1px rgba(181, 137, 0, 0.5);
+  }
+  .caption kbd { font: inherit; color: #e0b43c; }
+  .keycap { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); z-index: 9; font: 700 30px -apple-system, sans-serif; color: #fdf6e3; background: rgba(0, 20, 26, 0.85); padding: 14px 24px; border-radius: 16px; box-shadow: 0 0 0 1.5px rgba(224, 180, 60, 0.7), 0 20px 50px rgba(0, 0, 0, 0.5); letter-spacing: 0.06em; }
+  .chapter { position: absolute; left: 18px; bottom: 22px; z-index: 7; font: 700 10px ui-monospace, Menlo, monospace; letter-spacing: 0.16em; color: #e0b43c; background: rgba(0, 20, 26, 0.7); padding: 5px 9px; border-radius: 6px; }
+
+  /* finder */
+  .finder { left: 60px; top: 70px; width: 470px; height: 250px; background: #fbfbfc; color: #1d1d1f; }
+  .finder .bar b { margin-left: 12px; font-size: 12px; font-weight: 600; }
+  .frow { display: flex; align-items: center; gap: 9px; height: 30px; padding: 0 16px; font-size: 12.5px; border-bottom: 1px solid #eee; }
+  .frow.head { height: 26px; font-size: 11px; color: #86868b; font-weight: 600; background: #f3f3f5; }
+  .frow span:last-child { margin-left: auto; color: #86868b; font-size: 11.5px; }
+  .frow.sel { background: #0a64d6; color: #fff; } .frow.sel span:last-child { color: #dbe8ff; }
+  .ficon { width: 14px; height: 17px; border-radius: 2px; background: #fff; box-shadow: 0 0 0 1px #c7c7cc; position: relative; }
+  .ficon::after { content: ""; position: absolute; left: 3px; right: 3px; top: 5px; height: 1.5px; background: #c7c7cc; box-shadow: 0 3px 0 #c7c7cc, 0 6px 0 #c7c7cc; }
+  .ghost { position: absolute; display: flex; align-items: center; gap: 7px; font-size: 12px; color: #fff; background: rgba(10, 100, 214, 0.85); padding: 5px 9px; border-radius: 7px; z-index: 7; }
+  .tiles { position: absolute; right: 18px; bottom: 16px; width: 320px; transform-origin: 100% 100%; }
+  .tilehi { position: absolute; border-radius: 10px; box-shadow: 0 0 0 3px #fdf6e3 inset; background: rgba(255, 255, 255, 0.16); }
+
+  /* recording */
+  .picker { position: absolute; left: 130px; top: 75px; width: 700px; }
+  .ready { position: absolute; left: 240px; top: 89px; width: 480px; }
+  .overlay { position: absolute; border-radius: 12px; }
+  .recframe { position: absolute; border: 2px dashed rgba(220, 50, 47, 0.95); border-radius: 4px; display: none; }
+
+  /* setup scene */
+  .setupimg { position: absolute; left: 70px; top: 140px; width: 600px; border-radius: 16px; box-shadow: 0 30px 70px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(238, 232, 213, 0.12); }
+  .points { position: absolute; left: 720px; top: 170px; width: 500px; list-style: none; margin: 0; padding: 0; }
+  .points li { font-size: 22px; line-height: 1.35; padding: 0 0 26px 40px; position: relative; opacity: 0; }
+  .points li::before { content: "✓"; position: absolute; left: 0; top: 0; color: #e0b43c; font-weight: 800; }
+  .points li span { display: block; font-size: 15.5px; color: #93a1a1; margin-top: 4px; }
+  .setup-title { position: absolute; left: 70px; top: 58px; font-size: 38px; font-weight: 700; letter-spacing: -0.025em; }
+</style>
+
+<!-- 1 · title -->
+<section class="scene" id="s1">
+  <div class="bg"></div><div class="grid"></div>
+  <div class="center">
+    <div class="mark"><span class="dot" id="s1dot"></span><b id="s1word">dotshot</b></div>
+    <div class="tagline" id="s1tag">Capture here. <span class="gold">Let your agents use it there.</span></div>
+    <div class="sub" id="s1sub">For people who run coding agents on more than one machine.</div>
+  </div>
+</section>
+
+<!-- 2 · the problem -->
+<section class="scene" id="s2">
+  <div class="bg"></div><div class="grid"></div>
+  <div class="headline" id="s2h1">Your agents work <span class="gold">over there.</span></div>
+  <div id="s2map">
+    <svg class="links" viewBox="0 0 1280 720" id="s2links">
+      <g fill="none" stroke="#2aa198" stroke-width="2" stroke-dasharray="7 7">
+        <path d="M430 355 C 560 355, 600 190, 760 190"/>
+        <path d="M430 360 C 560 360, 600 300, 760 300"/>
+        <path d="M430 365 C 560 365, 600 410, 760 410"/>
+        <path d="M430 370 C 560 370, 600 520, 760 520"/>
+      </g>
+    </svg>
+    <div class="node me">
+      <svg width="44" height="34" viewBox="0 0 44 34"><rect x="5" y="2" width="34" height="23" rx="3" fill="none" stroke="#e0b43c" stroke-width="2.4"/><path d="M1 30 H43" stroke="#e0b43c" stroke-width="3" stroke-linecap="round"/></svg>
+      <div><b>This Mac</b><span>where you're looking</span></div>
+    </div>
+    <div class="node" style="left:760px;top:160px"><svg width="30" height="26" viewBox="0 0 30 26"><rect x="2" y="2" width="26" height="17" rx="3" fill="none" stroke="#93a1a1" stroke-width="2"/><path d="M10 24 H20" stroke="#93a1a1" stroke-width="2.4"/></svg><div><b>work</b><span>mac-studio</span></div><em class="tag">claude</em></div>
+    <div class="node" style="left:760px;top:270px"><svg width="30" height="26" viewBox="0 0 30 26"><rect x="3" y="2" width="24" height="22" rx="3" fill="none" stroke="#93a1a1" stroke-width="2"/><path d="M8 8 H22 M8 13 H22 M8 18 H22" stroke="#93a1a1" stroke-width="2"/></svg><div><b>gpu</b><span>gpu-box</span></div><em class="tag">claude</em></div>
+    <div class="node" style="left:760px;top:380px"><svg width="30" height="26" viewBox="0 0 30 26"><rect x="3" y="3" width="24" height="9" rx="2" fill="none" stroke="#93a1a1" stroke-width="2"/><rect x="3" y="14" width="24" height="9" rx="2" fill="none" stroke="#93a1a1" stroke-width="2"/></svg><div><b>nas</b><span>storage</span></div></div>
+    <div class="node" style="left:760px;top:490px"><svg width="30" height="26" viewBox="0 0 30 26"><circle cx="15" cy="13" r="10" fill="none" stroke="#93a1a1" stroke-width="2"/><path d="M15 7 V13 L19 16" stroke="#93a1a1" stroke-width="2" fill="none"/></svg><div><b>ci</b><span>ci-runner</span></div><em class="tag">codex</em></div>
+    <div class="thumb" id="s2thumb"><img src="raw/sample-settings.png" alt=""></div>
+    <div class="qmark" id="s2q">?</div>
+  </div>
+  <div class="headline" id="s2h2" style="top:64px">The screenshot lands <span class="gold">over here.</span></div>
+  <div class="chores" id="s2chores">
+    <div><i>1</i>⇧⌘4, then find it on the Desktop</div>
+    <div><i>2</i>Rename "Screenshot 2026-09-26 at 10.14.03"</div>
+    <div><i>3</i>scp it to the right machine</div>
+    <div><i>4</i>Work out its absolute path over there</div>
+    <div><i>5</i>Paste that path into the agent</div>
+  </div>
+  <div class="headline" id="s2h3" style="top:92px">Every time:</div>
+  <div class="answer" id="s2ans">dotshot does all five with one shortcut: <kbd>⌃⌥⌘S</kbd></div>
+</section>
+
+<!-- 3 · screenshot to gpu -->
+<section class="scene" id="s3">
+  <div class="stage">
+    <div class="bg"></div>
+    <div class="menubar"><b>Safari</b><span>File</span><span>Edit</span><span>View</span><span class="clock">Sat 10:14</span></div>
+    <div class="window light browser"><div class="bar"><i></i><i></i><i></i><span>localhost:5173/settings/network</span></div><img src="raw/sample-settings.png" alt=""></div>
+    <div class="window terminal" id="s3term">
+      <div class="bar"><i></i><i></i><i></i><b>ssh gpu-box — claude</b></div>
+      <div class="term">
+        <div class="dim">dev@gpu-box:~/projects/console</div>
+        <div><span class="gold">&gt;</span> <span id="s3typed"></span><span class="path" id="s3pasted"></span><span class="caret" id="s3caret"></span></div>
+        <br>
+        <div id="s3l1"><span class="cyan">●</span> Read network-settings-proxy-host-20260926-101400.png</div>
+        <div id="s3l2"><span class="cyan">●</span> The proxy host value escapes its row: the field uses</div>
+        <div id="s3l3">&nbsp;&nbsp;<span class="green">white-space: nowrap</span> inside a fixed 260px column.</div>
+        <div id="s3l4"><span class="cyan">●</span> Update <span class="gold">src/settings/NetworkRow.tsx</span></div>
+        <div id="s3l5">&nbsp;&nbsp;<span class="green">+ className="min-w-0 truncate" title={host}</span></div>
+      </div>
+    </div>
+    <img class="nub" id="s3nub" src="raw/pill-collapsed.png" alt="">
+    <img class="pill" id="s3pill" src="raw/pill-expanded-gpu.png" alt="">
+    <div class="selection" id="s3sel"><em id="s3dims"></em></div>
+    <div class="flash" id="s3flash"></div>
+    <div class="ocr" id="s3ocr" style="left:58px;top:262px"><small>ON-DEVICE OCR</small><span id="s3ocrtext"></span></div>
+    <div class="notification" id="s3note"><img src="raw/app-icon.png" alt=""><div><b>Sent to gpu</b><span>/home/dev/inbound/network-settings-proxy-host-20260926-101400.png (path copied)</span></div><small>now</small></div>
+    <div class="keycap" id="s3key" style="top:50%">⌘V</div>
+    <svg class="cursor" id="s3cursor" viewBox="0 0 18 26"><path d="M1 1 L1 20 L6 15.5 L9.5 23.5 L13 22 L9.5 14 L16 14 Z" fill="#000" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg>
+    <svg class="crosshair" id="s3cross" viewBox="0 0 30 30"><path d="M15 2 V28 M2 15 H28" stroke="#fff" stroke-width="2.4"/><path d="M15 2 V28 M2 15 H28" stroke="#000" stroke-width="1"/></svg>
+    <div class="chapter">SCREENSHOT</div>
+    <div class="caption" id="s3cap"></div>
+  </div>
+</section>
+
+<!-- 4 · drag and drop -->
+<section class="scene" id="s4">
+  <div class="stage">
+    <div class="bg"></div>
+    <div class="menubar"><b>Finder</b><span>File</span><span>Edit</span><span>View</span><span>Go</span><span class="clock">Sat 10:16</span></div>
+    <div class="window light finder">
+      <div class="bar"><i></i><i></i><i></i><b>Downloads</b></div>
+      <div class="frow head"><span>Name</span><span>Size</span></div>
+      <div class="frow"><span class="ficon"></span><span>build-output.log</span><span>84 KB</span></div>
+      <div class="frow" id="s4row"><span class="ficon"></span><span>crash-report.ips</span><span>212 KB</span></div>
+      <div class="frow"><span class="ficon"></span><span>schema.sql</span><span>9 KB</span></div>
+      <div class="frow"><span class="ficon"></span><span>fixtures.json</span><span>31 KB</span></div>
+    </div>
+    <img class="nub" id="s4nub" src="raw/pill-collapsed.png" alt="">
+    <img class="tiles" id="s4tiles" src="raw/pill-drop.png" alt="">
+    <div class="tilehi" id="s4hi" style="left:632px;top:415px;width:147px;height:99px"></div>
+    <div class="ghost" id="s4ghost"><span class="ficon"></span>crash-report.ips</div>
+    <div class="notification" id="s4note"><img src="raw/app-icon.png" alt=""><div><b>Sent to nas</b><span>/srv/inbound/crash-report.ips (path copied)</span></div><small>now</small></div>
+    <svg class="cursor" id="s4cursor" viewBox="0 0 18 26"><path d="M1 1 L1 20 L6 15.5 L9.5 23.5 L13 22 L9.5 14 L16 14 Z" fill="#000" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg>
+    <div class="chapter">ANY FILE</div>
+    <div class="caption" id="s4cap"></div>
+  </div>
+</section>
+
+<!-- 5 · recording -->
+<section class="scene" id="s5">
+  <div class="stage">
+    <div class="bg"></div>
+    <div class="menubar"><b>Safari</b><span>File</span><span>Edit</span><span>View</span><span class="clock" id="s5clock">Sat 10:19</span></div>
+    <div class="window light browser" style="width:600px;height:420px"><div class="bar"><i></i><i></i><i></i><span>localhost:5173/login</span></div><img src="raw/sample-login.png" alt="" style="width:600px"></div>
+    <div class="recframe" id="s5frame"></div>
+    <img class="nub" src="raw/pill-collapsed.png" alt="">
+    <img class="picker" id="s5picker" src="raw/recording-picker.png" alt="">
+    <div class="overlay" id="s5dim" style="left:173px;top:194px;width:196px;height:172px;background:rgba(40,40,40,0.72)"></div>
+    <div class="overlay" id="s5pick" style="left:591px;top:194px;width:196px;height:172px;box-shadow:0 0 0 2px #c9a227 inset;background:rgba(181,137,0,0.14)"></div>
+    <div class="selection" id="s5sel"><em id="s5dims"></em></div>
+    <img class="ready" id="s5ready" src="raw/recording-ready.png" alt="">
+    <div class="notification" id="s5note"><img src="raw/app-icon.png" alt=""><div><b>Sent to work</b><span>/Users/dev/inbound/sign-in-invalid-credentials-20260926-101900.mov (path copied)</span></div><small>now</small></div>
+    <div class="keycap" id="s5key"></div>
+    <svg class="cursor" id="s5cursor" viewBox="0 0 18 26"><path d="M1 1 L1 20 L6 15.5 L9.5 23.5 L13 22 L9.5 14 L16 14 Z" fill="#000" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg>
+    <svg class="crosshair" id="s5cross" viewBox="0 0 30 30"><path d="M15 2 V28 M2 15 H28" stroke="#fff" stroke-width="2.4"/><path d="M15 2 V28 M2 15 H28" stroke="#000" stroke-width="1"/></svg>
+    <div class="chapter">RECORDING</div>
+    <div class="caption" id="s5cap"></div>
+  </div>
+</section>
+
+<!-- 6 · setup and guarantees -->
+<section class="scene" id="s6">
+  <div class="bg"></div><div class="grid"></div>
+  <div class="setup-title">Set it up once. <span class="gold">Every machine, one shortcut.</span></div>
+  <img class="setupimg" id="s6img" src="raw/setup-destinations.png" alt="">
+  <ul class="points" id="s6points">
+    <li>Setup tests every machine<span>Host, key, and folder checked separately, with a fix for each failure.</span></li>
+    <li>Anything SSH can reach<span><code class="mono">user@host</code>, Tailscale names, <code class="mono">~/.ssh/config</code> aliases. Mac or Linux.</span></li>
+    <li>Scriptable<span><code class="mono">dotshot://</code> URLs for Shortcuts, Raycast, and scripts.</span></li>
+    <li>Nothing else to run<span>No account, cloud, daemon, or telemetry. Just <code class="mono">scp</code>.</span></li>
+  </ul>
+</section>
+
+<!-- 7 · end card -->
+<section class="scene" id="s7">
+  <div class="bg"></div><div class="grid"></div>
+  <div class="center">
+    <div class="mark"><span class="dot"></span><b>dotshot</b></div>
+    <div class="tagline">Capture here. <span class="gold">Let your agents use it there.</span></div>
+    <div class="sub">Free and open source · macOS 14+ · Apple silicon and Intel</div>
+    <div class="urlpill">github.com/mejohnc-ft/dotshot</div>
+  </div>
+</section>
+
+<script>
+  window.DURATION = 55;
+  const $ = (id) => document.getElementById(id);
+  const clamp = (x) => Math.max(0, Math.min(1, x));
+  const ease = (x) => { x = clamp(x); return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
+  const lerp = (a, b, k) => a + (b - a) * k;
+  let T = 0;
+  const span = (a, b) => ease((T - a) / (b - a));
+  const win = (a, b, f = 0.35) => span(a, a + f) * (1 - span(b - f, b));
+  const move = (points) => {  // [[time, x, y], ...]
+    for (let i = 1; i < points.length; i++) {
+      if (T <= points[i][0]) {
+        const k = span(points[i - 1][0], points[i][0]);
+        return [lerp(points[i - 1][1], points[i][1], k), lerp(points[i - 1][2], points[i][2], k)];
+      }
+    }
+    return points[points.length - 1].slice(1);
+  };
+  const show = (id, on) => { $(id).style.display = on ? "" : "none"; };
+  const place = (id, x, y) => { $(id).style.left = x + "px"; $(id).style.top = y + "px"; };
+  const slideIn = (id, a, b) => { const k = win(a, b); $(id).style.opacity = k; $(id).style.transform = `translateX(${lerp(380, 0, k)}px)`; };
+  const pop = (id, a, b, origin) => { const k = win(a, b, 0.3); $(id).style.opacity = k; $(id).style.transform = `scale(${lerp(0.9, 1, k)})`; if (origin) $(id).style.transformOrigin = origin; };
+  const typed = (text, a, b) => text.slice(0, Math.floor(clamp((T - a) / (b - a)) * text.length));
+
+  // Scene windows [start, end]; neighbours cross-fade over 0.5 s.
+  const SCENES = { s1: [0, 4.6], s2: [4.4, 14.6], s3: [14.4, 29.6], s4: [29.4, 37.6], s5: [37.4, 47.1], s6: [46.9, 51.6], s7: [51.4, 55.5] };
+
+  function title(t) {
+    T = t;
+    const d = span(0.2, 0.9);
+    $("s1dot").style.transform = `scale(${lerp(0, 1, d)})`;
+    $("s1word").style.opacity = span(0.6, 1.2);
+    $("s1word").style.transform = `translateX(${lerp(-16, 0, span(0.6, 1.2))}px)`;
+    $("s1tag").style.opacity = span(1.3, 1.9);
+    $("s1sub").style.opacity = span(2.2, 2.8);
+  }
+
+  function problem(t) {
+    T = t;
+    $("s2h1").style.opacity = win(0.2, 3.1);
+    $("s2h2").style.opacity = win(3.1, 5.7);
+    const map = 1 - span(5.4, 5.8);
+    $("s2map").style.opacity = map;
+    [...$("s2links").querySelectorAll("path")].forEach((p, i) => { p.style.opacity = span(0.4 + i * 0.25, 0.8 + i * 0.25); p.style.strokeDashoffset = -T * 22; });
+    const drop = span(3.2, 3.8);
+    place("s2thumb", lerp(250, 244, drop), lerp(170, 246, drop));
+    $("s2thumb").style.opacity = drop;
+    place("s2q", 326, 232);
+    $("s2q").style.opacity = span(4.0, 4.3);
+    $("s2q").style.transform = `scale(${lerp(0.4, 1, span(4.0, 4.3))})`;
+    $("s2h3").style.opacity = win(5.8, 10.1);
+    $("s2chores").style.opacity = win(5.8, 10.1);
+    [...$("s2chores").children].forEach((row, i) => {
+      row.style.opacity = span(6.0 + i * 0.45, 6.3 + i * 0.45);
+      row.style.setProperty("--strike", `${span(8.6 + i * 0.12, 9.1 + i * 0.12) * 94}%`);
+      row.style.color = T > 8.8 + i * 0.12 ? "#657b83" : "";
+    });
+    $("s2ans").style.opacity = span(8.9, 9.4);
+    $("s2ans").style.top = `${lerp(520, 520, 0)}px`;
+  }
+
+  const P1 = "/home/dev/inbound/network-settings-proxy-host-20260926-101400.png";
+  function screenshot(t) {
+    T = t;
+    const pillIn = span(1.15, 1.45) * (1 - span(2.55, 2.75));
+    $("s3pill").style.opacity = pillIn;
+    $("s3pill").style.transform = `scale(${lerp(0.35, 1, pillIn)})`;
+    $("s3nub").style.opacity = 1 - pillIn;
+    $("s3pill").style.filter = T > 2.3 && T < 2.5 ? "brightness(0.88)" : "none";
+
+    const [cx, cy] = move([[0, 420, 300], [1.1, 905, 490], [1.5, 905, 490], [2.2, 662, 372], [2.6, 662, 372], [2.9, 58, 196], [3.0, 58, 196], [3.9, 594, 246], [20, 594, 246]]);
+    const selecting = T >= 2.75 && T < 4.05;
+    place("s3cursor", cx, cy); place("s3cross", cx, cy);
+    show("s3cursor", !selecting && T < 4.05);
+    $("s3cross").style.display = selecting ? "block" : "none";
+    const sel = $("s3sel");
+    sel.style.display = T >= 3.0 && T < 4.05 ? "block" : "none";
+    sel.style.left = "58px"; sel.style.top = "196px";
+    sel.style.width = Math.max(0, cx - 58) + "px"; sel.style.height = Math.max(0, cy - 196) + "px";
+    $("s3dims").textContent = `${Math.round((cx - 58) * 2)} × ${Math.round((cy - 196) * 2)}`;
+    $("s3flash").style.opacity = T >= 4.05 && T < 4.35 ? 0.35 * (1 - span(4.05, 4.35)) : 0;
+
+    const ocr = win(4.3, 7.0, 0.25);
+    $("s3ocr").style.opacity = ocr;
+    $("s3ocr").style.transform = `translateY(${lerp(8, 0, ocr)}px)`;
+    const words = "Network Settings · Proxy host · proxy.internal…";
+    const name = "network-settings-proxy-host-20260926-101400.png";
+    $("s3ocrtext").innerHTML = T < 5.4 ? `<span class="muted">${typed(words, 4.4, 5.2)}</span>` : `<span class="gold">→</span> ${typed(name, 5.4, 6.3)}`;
+
+    slideIn("s3note", 6.9, 9.8);
+
+    const term = span(9.3, 9.7);
+    $("s3term").style.opacity = term;
+    $("s3term").style.transform = `translateY(${lerp(18, 0, term)}px) scale(${lerp(0.98, 1, term)})`;
+    $("s3typed").textContent = typed("Fix the overflow in ", 9.8, 10.8);
+    const pasted = T >= 11.2;
+    $("s3pasted").textContent = pasted ? P1 : "";
+    $("s3pasted").style.display = pasted ? "inline" : "none";
+    const key = win(10.9, 11.7, 0.15);
+    $("s3key").style.opacity = key;
+    $("s3key").style.transform = `translate(-50%, -50%) scale(${lerp(0.85, 1, key)})`;
+    $("s3caret").style.visibility = T < 11.9 && Math.floor(T * 2.5) % 2 === 0 ? "hidden" : "visible";
+    ["s3l1", "s3l2", "s3l3", "s3l4", "s3l5"].forEach((id, i) => { $(id).style.opacity = span(12.1 + i * 0.45, 12.35 + i * 0.45); });
+
+    $("s3cap").innerHTML = T < 2.75 ? "Hover the nub and click <kbd>Shot</kbd>, or press <kbd>⌃⌥⌘S</kbd>"
+      : T < 4.3 ? "Drag over what your agent should see"
+      : T < 6.9 ? "Offline OCR names the file after what's on screen"
+      : T < 9.3 ? "Sent over SSH to <kbd>gpu</kbd>. The remote path is on your clipboard."
+      : "Paste it into the agent running on <kbd>gpu</kbd>";
+  }
+
+  function dragDrop(t) {
+    T = t;
+    const [cx, cy] = move([[0, 380, 440], [0.8, 170, 160], [1.1, 170, 160], [2.2, 900, 486], [2.7, 900, 486], [3.3, 705, 462], [3.9, 705, 462], [8, 705, 462]]);
+    place("s4cursor", cx, cy);
+    $("s4row").classList.toggle("sel", T >= 0.9);
+    const dragging = T >= 1.1 && T < 3.9;
+    $("s4ghost").style.opacity = dragging ? 1 : 0;
+    place("s4ghost", cx > 600 ? cx - 150 : cx + 10, cy + 12);
+    const tiles = span(2.3, 2.6) * (1 - span(3.95, 4.2));
+    $("s4tiles").style.opacity = tiles;
+    $("s4tiles").style.transform = `scale(${lerp(0.4, 1, tiles)})`;
+    $("s4nub").style.opacity = 1 - tiles;
+    $("s4hi").style.opacity = T >= 3.25 && T < 3.95 ? tiles : 0;
+    slideIn("s4note", 4.2, 7.9);
+    $("s4cap").innerHTML = T < 2.3 ? "Drag any file onto the nub"
+      : T < 4.1 ? "Drop it on the machine that needs it"
+      : "Delivered to <kbd>nas</kbd>, path copied";
+  }
+
+  function recording(t) {
+    T = t;
+    const key = win(0.2, 1.1, 0.15);
+    $("s5key").textContent = T < 5 ? "⌃⌥⌘V" : "⌘⌃Esc";
+    const stopKey = win(5.9, 6.7, 0.15);
+    $("s5key").style.opacity = Math.max(key, stopKey);
+    $("s5key").style.transform = `translate(-50%, -50%) scale(${lerp(0.85, 1, Math.max(key, stopKey))})`;
+
+    pop("s5picker", 1.0, 3.0);
+    $("s5dim").style.opacity = T >= 2.1 && T < 3.0 ? win(1.0, 3.0) : 0;
+    $("s5pick").style.opacity = T >= 2.1 && T < 3.0 ? win(1.0, 3.0) : 0;
+
+    const [cx, cy] = move([[0, 480, 470], [1.4, 480, 470], [2.0, 689, 290], [2.4, 689, 290], [2.8, 708, 396], [3.1, 708, 396], [3.2, 222, 60], [3.3, 222, 60], [4.0, 456, 264], [4.3, 456, 264], [5.0, 338, 228], [5.3, 338, 228], [5.8, 520, 300], [6.9, 470, 250], [7.5, 331, 236], [20, 331, 236]]);
+    place("s5cursor", cx, cy); place("s5cross", cx, cy);
+    const selecting = T >= 3.1 && T < 4.1;
+    show("s5cursor", !selecting && T < 8.0);
+    $("s5cross").style.display = selecting ? "block" : "none";
+    const sel = $("s5sel");
+    sel.style.display = T >= 3.3 && T < 4.1 ? "block" : "none";
+    sel.style.left = "222px"; sel.style.top = "60px";
+    sel.style.width = Math.max(0, cx - 222) + "px"; sel.style.height = Math.max(0, cy - 60) + "px";
+    $("s5dims").textContent = `${Math.round((cx - 222) * 2)} × ${Math.round((cy - 60) * 2)}`;
+
+    const recording = T >= 4.1 && T < 6.3;
+    const frame = $("s5frame");
+    frame.style.display = recording ? "block" : "none";
+    frame.style.left = "222px"; frame.style.top = "60px"; frame.style.width = "234px"; frame.style.height = "204px";
+    $("s5clock").innerHTML = recording ? `<span class="rec">0:0${Math.min(9, Math.floor((T - 4.1) * 2.2))}</span>` : "Sat 10:19";
+    $("s5clock").style.opacity = 1;
+
+    pop("s5ready", 6.6, 7.9);
+    $("s5ready").style.filter = T > 7.55 && T < 7.75 ? "brightness(0.9)" : "none";
+    slideIn("s5note", 7.9, 11);
+
+    $("s5cap").innerHTML = T < 3.1 ? "<kbd>⌃⌥⌘V</kbd> records a whole display or any region"
+      : T < 4.1 ? "Drag over the part that matters"
+      : T < 6.6 ? "Reproduce the bug, then stop with <kbd>⌘⌃Esc</kbd>"
+      : T < 7.9 ? "Send it as-is, trim it, or shrink it to 720p"
+      : "Recordings get names and paths too";
+  }
+
+  function setup(t) {
+    T = t;
+    const k = span(0.1, 0.7);
+    $("s6img").style.transform = `translateY(${lerp(20, 0, k)}px)`;
+    $("s6img").style.opacity = k;
+    [...$("s6points").children].forEach((li, i) => { li.style.opacity = span(0.5 + i * 0.55, 0.9 + i * 0.55); li.style.transform = `translateX(${lerp(14, 0, span(0.5 + i * 0.55, 0.9 + i * 0.55))}px)`; });
+  }
+
+  window.render = (t) => {
+    const fns = { s1: title, s2: problem, s3: screenshot, s4: dragDrop, s5: recording, s6: setup, s7: () => {} };
+    for (const [id, [a, b]] of Object.entries(SCENES)) {
+      T = t;
+      const o = id === "s1" ? 1 - span(b - 0.5, b) : id === "s7" ? span(a, a + 0.5) : win(a, b, 0.5);
+      $(id).style.opacity = o;
+      $(id).style.visibility = o > 0 ? "visible" : "hidden";
+      if (o > 0) fns[id](t - a);
+    }
+  };
+  window.render(parseFloat((location.hash.match(/t=([\d.]+)/) || [0, "0"])[1]));
+</script>
