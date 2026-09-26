@@ -85,7 +85,8 @@ Source: GitHub Actions**.
 ./scripts/docs/capture-media.sh     # raw window captures from an isolated demo build
 ./scripts/docs/compose-media.sh     # docs/images/* and site/images/*
 ./scripts/docs/make-demo.sh         # docs/images/demo.gif and demo.mp4 (README loop)
-./scripts/docs/make-intro.sh        # docs/images/intro.mp4, the 80 s intro with soundtrack (Node.js + ffmpeg)
+./scripts/docs/make-intro.sh        # docs/images/intro.mp4, the 80 s UI walkthrough with soundtrack (Node.js + ffmpeg)
+./scripts/docs/make-intro.sh --style cinematic   # docs/images/intro-cinematic.mp4, the 62 s film
 ```
 
 `make-intro.sh --stills` renders a frame every two seconds for a quick review.
@@ -94,6 +95,10 @@ The intro's scenes live in `scripts/docs/intro.html`; open it in a browser with
 (`CUES` in `intro.html`); `scripts/docs/soundtrack.mjs` synthesizes the music and UI
 sounds from them, so the audio has no third-party license. `make-intro.sh --audio`
 re-mixes only the soundtrack in a few seconds.
+
+The cinematic cut (`scripts/docs/intro-cinematic.html`) draws each machine as SVG, with no logos or
+product photos, and brings its own score (`window.SCORE`). Its on-screen delivery time comes from
+`MEASURED` in that file: re-time real deliveries and update it rather than estimating.
 
 Your terminal app needs Screen Recording permission, and Google Chrome must be
 installed. These scripts never read your own dotshot settings.

@@ -3,7 +3,7 @@
 //
 //   Also writes <out>.cues.json when the scene defines window.SOUNDS.
 //
-//   node render-video.mjs <file://…scene.html> <out.mp4> [--fps 30] [--duration 50] [--width 1280] [--height 720] [--scale 1.5]
+//   node render-video.mjs <file://…scene.html> <out.mp4> [--fps 30] [--duration 50] [--width 1280] [--height 720] [--scale 1.5] [--crf 18]
 import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
 
@@ -11,7 +11,7 @@ const require = createRequire(process.env.DOTSHOT_NODE_MODULES + "/");
 const puppeteer = require("puppeteer-core");
 
 const [url, out, ...rest] = process.argv.slice(2);
-const opt = { fps: 30, duration: 0, width: 1280, height: 720, scale: 1.5 };
+const opt = { fps: 30, duration: 0, width: 1280, height: 720, scale: 1.5, crf: 18 };
 for (let i = 0; i < rest.length; i += 2) opt[rest[i].replace(/^--/, "")] = parseFloat(rest[i + 1]);
 if (!url || !out) {
   console.error("usage: render-video.mjs <url> <out.mp4> [--fps N] [--duration S] [--width W] [--height H] [--scale K]");
@@ -30,7 +30,7 @@ await page.evaluate(() => document.fonts.ready);
 const duration = opt.duration || (await page.evaluate(() => window.DURATION));
 
 // Scenes may publish sound cues (window.SOUNDS) for soundtrack.mjs; write them next to the video.
-const cues = await page.evaluate(() => window.SOUNDS && { duration: window.DURATION, sections: window.SECTIONS, sounds: window.SOUNDS });
+const cues = await page.evaluate(() => window.SOUNDS && { duration: window.DURATION, sections: window.SECTIONS, sounds: window.SOUNDS, style: window.STYLE, score: window.SCORE });
 if (cues) {
   const { writeFileSync } = await import("node:fs");
   writeFileSync(out.replace(/\.mp4$/, "") + ".cues.json", JSON.stringify(cues, null, 1));
@@ -39,7 +39,7 @@ const frames = Math.round(duration * opt.fps);
 
 const ffmpeg = spawn("ffmpeg", [
   "-loglevel", "error", "-y", "-f", "image2pipe", "-framerate", String(opt.fps), "-c:v", "png", "-i", "-",
-  "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18", "-preset", "slow", "-tune", "animation",
+  "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", String(opt.crf), "-preset", "slow", "-tune", "animation",
   "-movflags", "+faststart", out,
 ], { stdio: ["pipe", "inherit", "inherit"] });
 

@@ -25,6 +25,10 @@
 #rocprof h2{font:700 22px -apple-system,sans-serif;color:#e6edf3;margin:0 0 4px}#rocprof .sub{color:#7d8590;margin-bottom:18px;font-size:14px}
 #rocprof table{border-collapse:collapse;width:860px}#rocprof th{color:#7d8590;font-weight:600;text-align:left;padding:8px 10px;border-bottom:1px solid #30363d;font-size:13px}
 #rocprof td{padding:9px 10px;border-bottom:1px solid #21262d}#rocprof tr.hot td{background:#3d1d20}#rocprof .r{color:#ff7b72;font-weight:700}#rocprof .y{color:#e3b341}
+#finder{background:#f5f5f7;color:#1d1d1f;font-family:-apple-system,sans-serif}
+#finder .fbar{height:52px;background:#e9e9ec;display:flex;align-items:center;padding:0 22px;font-weight:600;font-size:17px;border-bottom:1px solid #d6d6da}
+#finder .frow{display:flex;justify-content:space-between;padding:14px 26px;font-size:17px;border-bottom:1px solid #ececef}
+#finder .frow.sel{background:#0a64d6;color:#fff}
 </style>
 <div class="v" id="settings"><div class="card"><h1>Network Settings</h1>
 <div class="row"><span>Private relay</span><span class="toggle"></span></div>
@@ -57,4 +61,9 @@
 <tr><td>rms_norm_fused</td><td>2,048</td><td>311.0</td><td>8.2%</td><td>63%</td><td>0.4%</td><td>541 GB/s</td></tr>
 <tr><td>rotary_embed</td><td>1,024</td><td>188.4</td><td>4.9%</td><td>55%</td><td>0.0%</td><td>402 GB/s</td></tr>
 <tr><td>allreduce_bf16</td><td>256</td><td>141.9</td><td>3.7%</td><td>12%</td><td>0.0%</td><td>96 GB/s</td></tr></table></div>
+<div class="v" id="finder"><div class="fbar">eval-run-42</div>
+<div class="frow sel"><span>eval-results-run-42.parquet</span><span>48 MB</span></div>
+<div class="frow"><span>vllm-server.log</span><span>3.1 MB</span></div>
+<div class="frow"><span>generations-sample.jsonl</span><span>920 KB</span></div>
+<div class="frow"><span>config.yaml</span><span>4 KB</span></div></div>
 <script>document.getElementById(location.hash.slice(1)||"settings").classList.add("on")</script>

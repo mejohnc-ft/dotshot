@@ -1,0 +1,431 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>dotshot — cinematic intro</title>
+<!--
+  The cinematic cut: a dark stage with stylized renders of each machine, camera moves, and light trails.
+  render-video.mjs calls window.render(t); open with #t=<seconds> to preview one moment.
+  Machines are drawn here as SVG (no logos or product photos). Numbers on screen are measured, not estimated:
+  update MEASURED when you re-time deliveries.
+-->
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 1280px; height: 720px; overflow: hidden; background: #05080a; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif; color: #eef1f2; -webkit-font-smoothing: antialiased; }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+  .gold { color: #e0b43c; }
+
+  #bg { position: absolute; inset: 0; background: radial-gradient(1100px 620px at 50% 58%, #0e1a1f 0%, #070c0f 55%, #030506 100%); }
+  #floor { position: absolute; left: -50%; right: -50%; top: 50%; height: 120%; transform-origin: 50% 0; transform: perspective(700px) rotateX(74deg);
+    background-image: linear-gradient(rgba(120, 200, 190, 0.09) 1px, transparent 1px), linear-gradient(90deg, rgba(120, 200, 190, 0.09) 1px, transparent 1px);
+    background-size: 80px 80px; mask-image: linear-gradient(to bottom, transparent, #000 25%, #000 60%, transparent); -webkit-mask-image: linear-gradient(to bottom, transparent, #000 20%, #000 55%, transparent); }
+  #vignette { position: absolute; inset: 0; background: radial-gradient(900px 520px at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.75)); pointer-events: none; z-index: 20; }
+  #grain { position: absolute; inset: 0; opacity: 0.035; z-index: 21; pointer-events: none; }
+
+  #world { position: absolute; left: 0; top: 0; width: 3000px; height: 1500px; transform-origin: 0 0; }
+  .machine { position: absolute; transform: translate(-50%, -50%); }
+  .label { position: absolute; transform: translateX(-50%); width: 340px; text-align: center; }
+  .label b { display: block; font-size: 34px; letter-spacing: -0.02em; font-weight: 750; }
+  .label span { display: block; font-size: 16px; color: #9fb0b3; margin-top: 4px; letter-spacing: 0.01em; }
+  .label em { display: inline-block; margin-top: 10px; font: 700 12px ui-monospace, Menlo, monospace; letter-spacing: 0.08em; padding: 4px 9px; border-radius: 6px; color: #120e02; background: #e0b43c; font-style: normal; }
+  .label em.plain { background: rgba(238, 241, 242, 0.14); color: #cfd6d8; }
+  .got { position: absolute; transform: translateX(-50%); white-space: nowrap; font: 15px ui-monospace, "SF Mono", Menlo, monospace; color: #cfe8e3;
+    background: rgba(4, 16, 18, 0.88); padding: 9px 14px; border-radius: 10px; box-shadow: 0 0 0 1px rgba(133, 153, 0, 0.55), 0 0 30px rgba(133, 200, 0, 0.18); }
+  .got i { font-style: normal; color: #9fcf35; font-weight: 800; margin-right: 8px; }
+  .got small { color: #6f8a8c; margin-left: 10px; font-size: 13px; }
+
+  #laptop { position: absolute; width: 560px; height: 380px; transform: translate(-50%, -50%); }
+  #screen { position: absolute; left: 46px; top: 16px; width: 468px; height: 292px; overflow: hidden; border-radius: 6px; background: #000; }
+  #screen img { position: absolute; left: 0; top: 0; width: 468px; height: 292px; object-fit: cover; object-position: left top; }
+  #sel { position: absolute; border: 2px solid rgba(255, 255, 255, 0.95); box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.35); display: none; }
+  #flash { position: absolute; inset: 0; background: #fff; opacity: 0; }
+
+  #card { position: absolute; width: 300px; height: 187px; transform: translate(-50%, -50%); border-radius: 10px; overflow: hidden; box-shadow: 0 30px 70px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.25), 0 0 60px rgba(224, 180, 60, 0.35); opacity: 0; }
+  #card img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; object-position: left top; }
+  #cardname { position: absolute; transform: translateX(-50%); white-space: nowrap; font: 600 17px ui-monospace, "SF Mono", Menlo, monospace; color: #f6e7b4; opacity: 0; }
+  #cardname small { display: block; text-align: center; font: 700 10px -apple-system, sans-serif; letter-spacing: 0.2em; color: #8d8b7e; margin-bottom: 6px; }
+
+  #overlay { position: absolute; inset: 0; z-index: 10; pointer-events: none; }
+  .center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+  .kicker { font: 700 13px ui-monospace, Menlo, monospace; letter-spacing: 0.3em; color: #e0b43c; text-transform: uppercase; }
+  .big { font-size: 64px; font-weight: 780; letter-spacing: -0.035em; line-height: 1.04; }
+  .mid { font-size: 30px; font-weight: 600; letter-spacing: -0.015em; color: #c9d3d5; }
+  #open1, #open2 { opacity: 0; }
+  #steps { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 760px; }
+  #steps div { display: flex; align-items: baseline; gap: 22px; font-size: 40px; font-weight: 700; letter-spacing: -0.02em; margin: 6px 0; opacity: 0; position: relative; }
+  #steps div i { font: 700 18px ui-monospace, Menlo, monospace; color: #6f8a8c; font-style: normal; width: 30px; }
+  #steps div::after { content: ""; position: absolute; left: 52px; top: 55%; height: 4px; width: var(--strike, 0%); background: #e0b43c; border-radius: 2px; }
+  #keycap { position: absolute; left: 50%; top: 50%; font-size: 120px; font-weight: 700; letter-spacing: 0.04em; padding: 26px 54px; border-radius: 34px;
+    background: linear-gradient(#1b2427, #0c1214); box-shadow: 0 0 0 2px rgba(224, 180, 60, 0.75), 0 40px 90px rgba(0, 0, 0, 0.7), 0 0 90px rgba(224, 180, 60, 0.25); opacity: 0; }
+  .stat { position: absolute; top: 50%; transform: translate(-50%, -50%); text-align: center; width: 400px; opacity: 0; }
+  .stat b { display: block; white-space: nowrap; font-size: 92px; font-weight: 800; letter-spacing: -0.05em; line-height: 1; }
+  .stat span { display: block; margin-top: 14px; font-size: 19px; color: #aebbbd; line-height: 1.35; }
+  .trust { position: absolute; left: 50%; transform: translateX(-50%); width: 860px; font-size: 38px; font-weight: 700; letter-spacing: -0.02em; opacity: 0; display: flex; gap: 20px; align-items: center; }
+  .trust i { font-style: normal; color: #9fcf35; font-size: 34px; }
+  .caption { position: absolute; left: 50%; bottom: 38px; transform: translateX(-50%); white-space: nowrap; font-size: 20px; font-weight: 600; color: #e9eef0; letter-spacing: 0.005em;
+    background: rgba(3, 8, 10, 0.72); padding: 11px 20px; border-radius: 999px; box-shadow: 0 0 0 1px rgba(224, 180, 60, 0.4); opacity: 0; }
+  .caption kbd { font: inherit; color: #e0b43c; }
+  #end .mark { display: flex; align-items: center; gap: 26px; }
+  #end .dot { width: 78px; height: 78px; border-radius: 50%; background: #b58900; box-shadow: 0 0 0 12px rgba(181, 137, 0, 0.22), 0 0 80px rgba(224, 180, 60, 0.5); }
+  #end b { font-size: 104px; letter-spacing: -0.045em; font-weight: 780; }
+  #end .tag { margin-top: 26px; font-size: 32px; font-weight: 600; }
+  #end .url { margin-top: 30px; font: 600 22px ui-monospace, Menlo, monospace; padding: 12px 24px; border-radius: 999px; box-shadow: 0 0 0 1px rgba(224, 180, 60, 0.55); color: #e9eef0; }
+  #end .sub { margin-top: 16px; font-size: 18px; color: #93a4a7; }
+</style>
+
+<div id="bg"></div>
+<div id="floor"></div>
+<div id="world">
+  <svg id="links" width="3000" height="1500" style="position:absolute;left:0;top:0;overflow:visible"></svg>
+  <div id="machines"></div>
+  <div id="laptop"></div>
+  <div id="card"><img id="cardimg" alt=""></div>
+  <div id="cardname"><small>ON-DEVICE OCR NAME</small><span id="cardtext"></span></div>
+  <div id="gots"></div>
+</div>
+<div id="overlay">
+  <div class="center" id="open"><div class="big" id="open1">Your agents run on other machines.</div><div class="mid" id="open2" style="margin-top:18px">Your screen doesn't.</div></div>
+  <div id="steps">
+    <div><i>1</i>Find the screenshot</div>
+    <div><i>2</i>Rename it</div>
+    <div><i>3</i>scp it to the right machine</div>
+    <div><i>4</i>Work out its path over there</div>
+    <div><i>5</i>Paste it into the agent</div>
+  </div>
+  <div class="center" id="oldhead" style="justify-content:flex-start;padding-top:70px;opacity:0"><div class="kicker">Every screenshot, every machine</div></div>
+  <div id="keycap">⌃⌥⌘S</div>
+  <div class="center" id="onesub" style="justify-content:flex-end;padding-bottom:120px;opacity:0"><div class="mid">One shortcut. Named, sent, path copied.</div></div>
+  <div id="stats">
+    <div class="stat" id="st1" style="left:22%"><b>1</b><span>shortcut, any machine<br>pill, hotkey, or drop tile</span></div>
+    <div class="stat" id="st2" style="left:50%"><b id="st2n">0.2 s</b><span id="st2s"></span></div>
+    <div class="stat" id="st3" style="left:78%"><b>0</b><span>installed on your machines<br>no account, cloud, or telemetry</span></div>
+  </div>
+  <div id="trusts">
+    <div class="trust" style="top:210px"><i>✓</i>Private files on both ends</div>
+    <div class="trust" style="top:280px"><i>✓</i>Never overwrites anything</div>
+    <div class="trust" style="top:350px"><i>✓</i>Secrets kept out of file names</div>
+    <div class="trust" style="top:420px"><i>✓</i>Notarized by Apple · open source</div>
+  </div>
+  <div class="center" id="end" style="opacity:0">
+    <div class="mark"><span class="dot"></span><b>dotshot</b></div>
+    <div class="tag">Capture here. <span class="gold">Let your agents use it there.</span></div>
+    <div class="url">github.com/mejohnc-ft/dotshot</div>
+    <div class="sub">Free · macOS 14+ · Apple silicon and Intel</div>
+  </div>
+  <div class="caption" id="cap"></div>
+</div>
+<div id="vignette"></div>
+<canvas id="grain" width="640" height="360"></canvas>
+
+<script>
+  // Delivery time measured from this Mac to a NAS over Tailscale (420 KB file, three runs, 2026-09-26).
+  const MEASURED = { value: "0.2–0.5 s", detail: "measured delivery to my NAS<br>over Tailscale, 420 KB screenshot" };
+
+  const $ = (id) => document.getElementById(id);
+  const clamp = (x) => Math.max(0, Math.min(1, x));
+  const ease = (x) => { x = clamp(x); return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
+  const easeOut = (x) => 1 - Math.pow(1 - clamp(x), 3);
+  const lerp = (a, b, k) => a + (b - a) * k;
+  let T = 0;
+  const span = (a, b) => ease((T - a) / (b - a));
+  const win = (a, b, f = 0.4) => span(a, a + f) * (1 - span(b - f, b));
+  const typed = (s, a, b) => s.slice(0, Math.floor(clamp((T - a) / (b - a)) * s.length));
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+
+  // ---- machines (stylized, no logos) ----------------------------------------------------------------
+  function foam(id, w, h) {
+    let dots = "";
+    for (let i = 0; i < 420; i++) dots += `<circle cx="${(rnd() * w).toFixed(1)}" cy="${(rnd() * h).toFixed(1)}" r="${(0.8 + rnd() * 3.2).toFixed(1)}"/>`;
+    return `<linearGradient id="${id}g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e8c878"/><stop offset=".45" stop-color="#b8923e"/><stop offset="1" stop-color="#6e5220"/></linearGradient>
+      <pattern id="${id}p" width="${w}" height="${h}" patternUnits="userSpaceOnUse"><rect width="${w}" height="${h}" fill="url(#${id}g)"/><g fill="rgba(40,28,6,.55)">${dots}</g></pattern>`;
+  }
+  const SVG = {
+    spark: () => `<svg width="300" height="260" viewBox="0 0 300 260"><defs>${foam("sp", 190, 190)}
+      <linearGradient id="spside" x1="0" x2="1"><stop offset="0" stop-color="#23262a"/><stop offset="1" stop-color="#101214"/></linearGradient></defs>
+      <ellipse cx="150" cy="238" rx="130" ry="14" fill="rgba(0,0,0,.6)"/>
+      <polygon points="40,52 230,52 272,22 82,22" fill="#2c3035"/>
+      <polygon points="230,52 272,22 272,196 230,226" fill="url(#spside)"/>
+      <rect x="40" y="52" width="190" height="174" rx="10" fill="url(#spp)"/>
+      <rect x="40" y="52" width="190" height="174" rx="10" fill="none" stroke="rgba(255,240,200,.35)"/>
+      <rect x="40" y="52" width="190" height="16" fill="rgba(255,255,255,.12)"/>
+      <circle class="led" cx="214" cy="212" r="4" fill="#7dff9a"/></svg>`,
+    rocm: () => { let mesh = ""; for (let y = 34; y < 318; y += 9) for (let x = 104; x < 246; x += 9) mesh += `<circle cx="${x}" cy="${y}" r="2.2"/>`;
+      const fan = (cx, cy) => `<g transform="translate(${cx} ${cy})"><circle r="52" fill="#0a0c0e" stroke="#2b3035" stroke-width="3"/><g class="fan">${[0, 1, 2, 3, 4, 5, 6].map((i) => `<path d="M0 0 C 14 -10, 36 -16, 46 -4 C 30 -2, 16 4, 0 0" fill="#3a4148" transform="rotate(${i * 51.4})"/>`).join("")}</g><circle r="10" fill="#1c2024"/></g>`;
+      return `<svg width="300" height="360" viewBox="0 0 300 360"><ellipse cx="160" cy="340" rx="140" ry="14" fill="rgba(0,0,0,.6)"/>
+      <polygon points="30,40 96,22 96,338 30,320" fill="rgba(140,170,190,.10)" stroke="rgba(160,190,210,.35)"/>
+      <g opacity=".95"><polygon points="36,120 92,108 92,150 36,162" fill="#16191c" stroke="#3b4148"/><rect x="36" y="150" width="6" height="12" fill="#c83838"/>
+      <polygon points="36,190 92,178 92,220 36,232" fill="#16191c" stroke="#3b4148"/><rect x="36" y="220" width="6" height="12" fill="#c83838"/></g>
+      <polygon points="96,22 250,22 250,338 96,338" fill="#15181b"/><g fill="#050607">${mesh}</g>
+      ${fan(173, 108)}${fan(173, 234)}
+      <polygon points="30,40 96,22 250,22 184,40" fill="#23282d"/>
+      <circle class="led" cx="238" cy="326" r="4" fill="#ff5a4e"/></svg>`; },
+    mac: () => `<svg width="300" height="220" viewBox="0 0 300 220"><defs><linearGradient id="al" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e3e6e9"/><stop offset="1" stop-color="#9ea4aa"/></linearGradient>
+      <linearGradient id="alt" x1="0" x2="1"><stop offset="0" stop-color="#f4f6f8"/><stop offset="1" stop-color="#c9ced3"/></linearGradient></defs>
+      <ellipse cx="150" cy="198" rx="130" ry="13" fill="rgba(0,0,0,.6)"/>
+      <path d="M40 78 Q40 66 52 62 L214 62 L252 36 L90 36 Q78 40 72 48 Z" fill="url(#alt)"/>
+      <polygon points="228,62 252,36 252,152 228,184" fill="#8b9197"/>
+      <rect x="40" y="62" width="190" height="124" rx="18" fill="url(#al)"/>
+      <rect x="62" y="146" width="12" height="5" rx="2" fill="#2d3136"/><rect x="82" y="146" width="12" height="5" rx="2" fill="#2d3136"/>
+      <rect x="150" y="144" width="42" height="8" rx="4" fill="#2d3136"/><circle class="led" cx="214" cy="170" r="3.5" fill="#f4f7ff"/></svg>`,
+    nas: () => { const bay = (x) => `<rect x="${x}" y="64" width="38" height="150" rx="4" fill="#0f1113" stroke="#2c3136"/><rect x="${x + 8}" y="80" width="22" height="4" rx="2" fill="#30363c"/><rect x="${x + 8}" y="92" width="22" height="4" rx="2" fill="#30363c"/><circle class="bayled" cx="${x + 19}" cy="200" r="3.5" fill="#39d98a"/>`;
+      return `<svg width="300" height="260" viewBox="0 0 300 260"><ellipse cx="150" cy="240" rx="130" ry="14" fill="rgba(0,0,0,.6)"/>
+      <polygon points="40,50 230,50 268,24 78,24" fill="#2a2e33"/><polygon points="230,50 268,24 268,196 230,224" fill="#121416"/>
+      <rect x="40" y="50" width="190" height="174" rx="10" fill="#1a1d20"/>${bay(52)}${bay(96)}${bay(140)}${bay(184)}
+      <circle class="led" cx="58" cy="38" r="0"/></svg>`; },
+  };
+
+  const MACHINES = [
+    { id: "spark", x: 520, y: 470, label: "spark", spec: "Spark cluster · DGX Spark · CUDA", agent: "claude", color: "#e0b43c" },
+    { id: "rocm", x: 1180, y: 350, label: "rocm", spec: "ROCm cluster · 2× Radeon AI PRO R9700", agent: "codex", color: "#2aa198" },
+    { id: "mac", x: 1820, y: 350, label: "mac", spec: "Dev Mac · MLX · app development", agent: "claude", color: "#8f8fe0" },
+    { id: "nas", x: 2480, y: 470, label: "nas", spec: "NAS · ZFS · datasets and archives", agent: "", color: "#9fcf35" },
+  ];
+  const HOME = { x: 1500, y: 1020 };
+  MACHINES.forEach((m) => {
+    const el = document.createElement("div");
+    el.className = "machine"; el.style.left = m.x + "px"; el.style.top = m.y + "px"; el.innerHTML = SVG[m.id]();
+    $("machines").appendChild(el); m.el = el;
+    const lab = document.createElement("div");
+    lab.className = "label"; lab.style.left = m.x + "px"; lab.style.top = (m.y + (m.id === "rocm" ? 190 : 140)) + "px";
+    lab.innerHTML = `<b>${m.label}</b><span>${m.spec}</span>${m.agent ? `<em>${m.agent}</em>` : `<em class="plain">storage</em>`}`;
+    $("machines").appendChild(lab); m.lab = lab;
+    const got = document.createElement("div");
+    got.className = "got"; got.style.left = m.x + "px"; got.style.top = (m.y - (m.id === "rocm" ? 290 : 230)) + "px";
+    $("gots").appendChild(got); m.got = got;
+  });
+
+  $("laptop").style.left = HOME.x + "px"; $("laptop").style.top = HOME.y + "px";
+  $("laptop").innerHTML = `<svg width="560" height="380" viewBox="0 0 560 380" style="position:absolute;left:0;top:0">
+    <ellipse cx="280" cy="366" rx="270" ry="14" fill="rgba(0,0,0,.65)"/>
+    <rect x="34" y="4" width="492" height="316" rx="18" fill="#101315" stroke="#3a4046"/>
+    <path d="M6 326 L554 326 L530 356 L30 356 Z" fill="#9aa1a7"/><path d="M6 326 L554 326 L552 332 L8 332 Z" fill="#c7ccd0"/>
+    <rect x="236" y="330" width="88" height="6" rx="3" fill="#7b8288"/></svg>
+    <div id="screen"><img id="screenimg" alt=""><div id="sel"></div><div id="flash"></div></div>`;
+
+  // Links from the laptop to each machine, with a path for the light trail.
+  const NS = "http://www.w3.org/2000/svg";
+  MACHINES.forEach((m) => {
+    const c1x = lerp(HOME.x, m.x, 0.25), c1y = HOME.y - 380, c2x = m.x, c2y = m.y + 360;
+    const d = `M${HOME.x} ${HOME.y - 150} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${m.x} ${m.y + 90}`;
+    const base = document.createElementNS(NS, "path");
+    base.setAttribute("d", d); base.setAttribute("fill", "none"); base.setAttribute("stroke", "rgba(120,200,190,.22)"); base.setAttribute("stroke-width", "2.5"); base.setAttribute("stroke-dasharray", "8 12");
+    const trail = document.createElementNS(NS, "path");
+    trail.setAttribute("d", d); trail.setAttribute("fill", "none"); trail.setAttribute("stroke", m.color); trail.setAttribute("stroke-width", "7"); trail.setAttribute("stroke-linecap", "round");
+    trail.style.filter = `drop-shadow(0 0 14px ${m.color}) drop-shadow(0 0 30px ${m.color})`;
+    const head = document.createElementNS(NS, "circle");
+    head.setAttribute("r", "13"); head.setAttribute("fill", "#fff"); head.style.filter = `drop-shadow(0 0 16px ${m.color}) drop-shadow(0 0 40px ${m.color})`;
+    const ring = document.createElementNS(NS, "circle");
+    ring.setAttribute("cx", m.x); ring.setAttribute("cy", m.y); ring.setAttribute("fill", "none"); ring.setAttribute("stroke", m.color); ring.setAttribute("stroke-width", "4");
+    $("links").append(base, trail, head, ring);
+    Object.assign(m, { base, trail, head, ring, len: trail.getTotalLength() });
+    const packets = [0, 1, 2].map(() => { const p = document.createElementNS(NS, "circle"); p.setAttribute("r", "3.5"); p.setAttribute("fill", "rgba(160,230,220,.7)"); $("links").appendChild(p); return p; });
+    m.packets = packets;
+  });
+
+  // Film grain, fixed per frame index for stable renders.
+  const grain = $("grain").getContext("2d");
+  function drawGrain(frame) {
+    const img = grain.createImageData(640, 360); let s = frame * 9973 + 1;
+    for (let i = 0; i < img.data.length; i += 4) { s = (s * 16807) % 2147483647; const v = s & 255; img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 255; }
+    grain.putImageData(img, 0, 0);
+  }
+
+  // ---- timeline ------------------------------------------------------------------------------------
+  // Camera keyframes: [time, world x at centre, world y at centre, zoom].
+  const WIDE = [1500, 700, 0.43];
+  const CAM = [
+    [0, 1500, 900, 2.6], [4.2, 1500, 900, 2.4], [7.0, ...WIDE],
+    [7.8, 520, 520, 1.05], [9.3, 520, 520, 1.12], [10.1, 1180, 420, 1.0], [11.6, 1180, 420, 1.07], [12.4, 1820, 400, 1.05],
+    [13.9, 1820, 400, 1.12], [14.7, 2480, 520, 1.05], [16.2, 2480, 520, 1.12], [17.2, ...WIDE],
+    [25.0, ...WIDE], [26.2, 1500, 840, 1.2], [29.6, 1500, 840, 1.24], [31.0, 1000, 760, 0.62], [33.4, 900, 700, 0.66],
+    [34.4, ...WIDE], [46.0, ...WIDE], [47.0, 1500, 740, 0.4], [70, 1500, 740, 0.4],
+  ];
+  function camera() {
+    for (let i = 1; i < CAM.length; i++) if (T <= CAM[i][0]) {
+      const k = ease((T - CAM[i - 1][0]) / (CAM[i][0] - CAM[i - 1][0]));
+      return [1, 2, 3].map((j) => lerp(CAM[i - 1][j], CAM[i][j], k));
+    }
+    return CAM[CAM.length - 1].slice(1);
+  }
+
+  // Deliveries: what's captured, where it goes, and when. The first is the full walkthrough.
+  const SENDS = [
+    { m: 0, at: 26.0, fly: 30.4, img: "raw/sample-training.png", sel: [0.03, 0.12, 0.72, 0.78], name: "train-loss-llama-8b-sft-run-42-20260926-102200.png", path: "/home/dev/inbound/train-loss-…png", what: "Loss spike → Claude on the Spark cluster" },
+    { m: 1, at: 34.6, fly: 35.8, img: "raw/sample-rocprof.png", sel: [0.03, 0.04, 0.7, 0.36], name: "rocprofv3-kernel-summary-gemm-bf16-tile64.png", path: "/home/dev/inbound/rocprofv3-…png", what: "Profiler table → Codex on the ROCm cluster" },
+    { m: 2, at: 38.4, fly: 39.6, img: "raw/sample-login.png", sel: [0.3, 0.12, 0.7, 0.88], name: "sign-in-invalid-credentials-20260926.mov", path: "/Users/dev/inbound/sign-in-…mov", what: "Screen recording of a flaky login → the Dev Mac", rec: true },
+    { m: 3, at: 42.2, fly: 43.0, img: "raw/sample-finder.png", sel: null, name: "eval-results-run-42-20260926-103400.parquet", path: "/srv/inbound/eval-results-…parquet", what: "48 MB of eval results → the NAS (any file, dropped on the pill)" },
+  ];
+
+  function renderWorld() {
+    const [cx, cy, z] = camera();
+    $("world").style.transform = `translate(${640 - cx * z}px, ${360 - cy * z}px) scale(${z})`;
+    $("floor").style.backgroundPosition = `${-cx * 0.35}px ${-(cy * 0.35) + T * 24}px`;
+
+    const reveal = span(4.4, 7.0);
+    MACHINES.forEach((m, i) => {
+      const r = span(5.0 + i * 0.35, 6.2 + i * 0.35);
+      m.el.style.opacity = r; m.el.style.transform = `translate(-50%, -50%) translateY(${lerp(40, 0, r)}px) scale(${lerp(0.92, 1, r)})`;
+      const focus = [7.8, 10.1, 12.4, 14.7][i];
+      const lab = Math.max(span(focus - 0.2, focus + 0.5), span(16.6, 17.4));
+      m.lab.style.opacity = lab * (1 - span(46.0, 46.8)); m.lab.style.transform = `translateX(-50%) translateY(${lerp(16, 0, lab)}px)`;
+      m.base.style.opacity = span(5.4 + i * 0.3, 6.6 + i * 0.3) * (1 - 0.7 * span(18.2, 18.8) + 0.7 * span(24.2, 25.0));
+      m.base.style.strokeDashoffset = -T * 30;
+      m.packets.forEach((p, j) => {
+        const u = ((T * 0.22 + j / 3 + i * 0.17) % 1);
+        const pt = m.base.getPointAtLength(u * m.len); p.setAttribute("cx", pt.x); p.setAttribute("cy", pt.y);
+        p.style.opacity = reveal * 0.8 * (1 - span(18.2, 18.8) + span(24.2, 25.0)) * (1 - span(46, 46.8));
+      });
+      m.el.querySelectorAll(".fan").forEach((f, k) => f.setAttribute("transform", `rotate(${(T * (420 + k * 60)) % 360})`));
+      m.el.querySelectorAll(".bayled").forEach((led, k) => led.setAttribute("fill", Math.sin(T * (7 + k * 2.3) + k) > 0.2 ? "#39d98a" : "#0f3b24"));
+      const led = m.el.querySelector(".led");
+      if (led) led.style.opacity = 0.55 + 0.45 * Math.sin(T * 2.2 + i);
+    });
+    $("laptop").style.opacity = span(3.6, 5.2);
+    // The stage steps back behind full-screen text: the old way, the numbers, the promises, the end card.
+    const dim = Math.max(span(17.6, 18.6) - span(24.2, 25.2), span(46.4, 47.2));
+    [$("machines"), $("links"), $("laptop"), $("gots")].forEach((el) => { el.style.filter = dim > 0.001 ? `blur(${dim * 10}px) brightness(${1 - 0.65 * dim})` : "none"; });
+    $("world").style.opacity = 1 - 0.8 * span(57.8, 58.6);
+
+    // Deliveries.
+    MACHINES.forEach((mm) => { mm.trail.style.opacity = 0; mm.head.style.opacity = 0; mm.ring.style.opacity = 0; });
+    let current = null;
+    SENDS.forEach((s, k) => { if (T >= s.at - 0.3) current = s; });
+    const s = current;
+    const scr = $("screenimg"), sel = $("sel");
+    scr.src = s ? s.img : "raw/sample-training.png";
+    const hero = s === SENDS[0];
+    const selStart = s ? s.at + (hero ? 0.6 : 0.1) : 0, selEnd = selStart + (hero ? 1.2 : 0.5), shot = selEnd + 0.05;
+    if (s && s.sel && T >= selStart && T < shot) {
+      const k = easeOut((T - selStart) / (selEnd - selStart));
+      const [x0, y0, x1, y1] = s.sel;
+      sel.style.display = "block";
+      sel.style.left = x0 * 468 + "px"; sel.style.top = y0 * 292 + "px";
+      sel.style.width = (x1 - x0) * 468 * k + "px"; sel.style.height = (y1 - y0) * 292 * k + "px";
+      sel.style.borderColor = s.rec ? "rgba(255,80,70,.95)" : "rgba(255,255,255,.95)";
+    } else sel.style.display = "none";
+    $("flash").style.opacity = s && T >= shot && T < shot + 0.3 ? 0.55 * (1 - (T - shot) / 0.3) : 0;
+
+    // The captured card lifts out of the screen, gets its name, then becomes the trail's head.
+    const card = $("card"), cname = $("cardname");
+    if (s) {
+      const lift = easeOut((T - shot) / 0.6), named = hero ? [shot + 0.9, shot + 2.4] : [shot + 0.2, shot + 0.8];
+      const fly = s.fly, m = MACHINES[s.m];
+      const shrink = span(fly - 0.35, fly);
+      const img = card.querySelector("img");
+      img.src = s.img;
+      if (s.sel) {  // the card shows exactly the region that was dragged over
+        const [x0, y0, x1, y1] = s.sel, kx = 300 / ((x1 - x0) * 468), ky = 187 / ((y1 - y0) * 292);
+        Object.assign(img.style, { objectFit: "fill", width: 468 * kx + "px", height: 292 * ky + "px", left: -x0 * 468 * kx + "px", top: -y0 * 292 * ky + "px" });
+      } else Object.assign(img.style, { objectFit: "cover", width: "100%", height: "100%", left: "0px", top: "0px" });
+      card.style.left = HOME.x + "px"; card.style.top = (HOME.y - 150 - lift * (hero ? 120 : 150)) + "px";
+      card.style.opacity = T >= shot ? (1 - shrink) : 0;
+      card.style.transform = `translate(-50%, -50%) perspective(900px) rotateX(${lerp(18, 0, lift)}deg) scale(${lerp(0.6, hero ? 1.25 : 0.9, lift) * (1 - 0.8 * shrink)})`;
+      cname.style.left = HOME.x + "px"; cname.style.top = (HOME.y - 150 - (hero ? 120 : 150) + (hero ? 140 : 110)) + "px";
+      cname.style.opacity = T >= named[0] && T < fly ? 1 - shrink : 0;
+      $("cardtext").textContent = typed(s.name, named[0], named[1]);
+
+      const travel = hero ? 1.25 : 0.8, arrive = fly + travel;
+      if (T >= fly - 0.05 && T < arrive + 0.6) {
+        const u = easeOut((T - fly) / travel);
+        m.trail.style.opacity = 1 - span(arrive, arrive + 0.6);
+        m.trail.style.strokeDasharray = `${m.len * 0.28} ${m.len * 2}`;
+        m.trail.style.strokeDashoffset = `${m.len * 0.28 - u * m.len * 1.28}`;
+        const pt = m.trail.getPointAtLength(Math.min(u, 1) * m.len);
+        m.head.setAttribute("cx", pt.x); m.head.setAttribute("cy", pt.y); m.head.style.opacity = T < arrive ? 1 : 0;
+      }
+      if (T >= arrive && T < arrive + 1.2) {
+        const r = (T - arrive) / 1.2;
+        m.ring.setAttribute("r", 60 + r * 220); m.ring.style.opacity = 1 - r;
+        m.el.style.filter = `drop-shadow(0 0 ${30 * (1 - r)}px ${m.color})`;
+      } else m.el.style.filter = "none";
+    }
+    SENDS.forEach((sd) => {
+      const m = MACHINES[sd.m], arrive = sd.fly + (sd === SENDS[0] ? 1.25 : 0.8);
+      const k = span(arrive + 0.1, arrive + 0.5) * (1 - span(46.0, 46.6));
+      m.got.style.opacity = k; m.got.style.transform = `translateX(-50%) translateY(${lerp(12, 0, k)}px) scale(${0.8 / Math.max(camera()[2], 0.4)})`;
+      m.got.innerHTML = `<i>✓</i>${typed(sd.path, arrive + 0.1, arrive + 0.8)}`;
+    });
+  }
+
+  function renderOverlay() {
+    $("open1").style.opacity = win(0.4, 4.6, 0.6); $("open1").style.transform = `translateY(${lerp(14, 0, span(0.4, 1.2))}px)`;
+    $("open2").style.opacity = win(1.8, 4.6, 0.6);
+    $("open").style.opacity = 1;
+
+    $("oldhead").style.opacity = win(18.2, 23.6);
+    [...$("steps").children].forEach((row, i) => {
+      const a = 18.6 + i * 0.55;
+      row.style.opacity = span(a, a + 0.25) * (1 - span(23.2, 23.6));
+      row.style.transform = `translateX(${lerp(-40, 0, easeOut((T - a) / 0.35))}px)`;
+      row.style.setProperty("--strike", `${span(21.7 + i * 0.1, 22.2 + i * 0.1) * 92}%`);
+      row.style.color = T > 21.9 + i * 0.1 ? "#58686b" : "";
+    });
+    const key = win(23.4, 26.0, 0.35);
+    $("keycap").style.opacity = key;
+    $("keycap").style.transform = `translate(-50%, -50%) scale(${lerp(1.6, 1, easeOut((T - 23.4) / 0.4))})`;
+    $("onesub").style.opacity = win(24.0, 26.0);
+
+    const statsOn = (a) => span(a, a + 0.5) * (1 - span(52.6, 53.2));
+    $("st1").style.opacity = statsOn(47.2); $("st2").style.opacity = statsOn(48.0); $("st3").style.opacity = statsOn(48.8);
+    ["st1", "st2", "st3"].forEach((id, i) => { $(id).style.transform = `translate(-50%, -50%) translateY(${lerp(30, 0, span(47.2 + i * 0.8, 47.9 + i * 0.8))}px)`; });
+    $("st2n").textContent = MEASURED.value; $("st2s").innerHTML = MEASURED.detail;
+
+    [...$("trusts").children].forEach((row, i) => {
+      const a = 53.4 + i * 0.45;
+      row.style.opacity = span(a, a + 0.35) * (1 - span(57.8, 58.3));
+      row.style.transform = `translateX(-50%) translateX(${lerp(30, 0, easeOut((T - a) / 0.4))}px)`;
+    });
+    $("end").style.opacity = span(58.3, 59.0);
+    $("end").style.transform = `scale(${lerp(0.96, 1, span(58.3, 60))})`;
+
+    let cap = "";
+    if (T > 7.6 && T < 17.2) cap = "Four machines. Four agents. One laptop to look at.";
+    else if (T > 26.0 && T < 29.8) cap = "<kbd>⌃⌥⌘S</kbd>, drag over what matters, and it's named from what's on screen";
+    else if (T > 30.2 && T < 34.2) cap = "Sent over the SSH you already have. The path is on your clipboard.";
+    else { SENDS.slice(1).forEach((s) => { if (T > s.at && T < s.fly + 1.9) cap = s.what; }); }
+    if (T > 44.6 && T < 46.2) cap = "Switch machines from the pill, a hotkey URL, or a drop tile";
+    $("cap").innerHTML = cap;
+    $("cap").style.opacity = cap ? 1 : 0;
+    $("overlay").style.opacity = 1;
+  }
+
+  window.DURATION = 62;
+  window.STYLE = "cinematic";
+  window.render = (t) => {
+    T = t;
+    renderWorld();
+    renderOverlay();
+    drawGrain(Math.floor(t * 4));  // grain changes 4× a second: film texture without wrecking compression
+    document.body.style.opacity = Math.min(1, t / 0.6) * (1 - span(61.0, 62));
+  };
+
+  // Sound cues (seconds) for soundtrack.mjs, and the score it plays.
+  const CUES = [
+    [0.4, "boom"], [4.4, "whoosh"], [5.0, "impact"], [5.35, "impact"], [5.7, "impact"], [6.05, "impact"],
+    [7.6, "whoosh"], [9.9, "whoosh"], [12.2, "whoosh"], [14.5, "whoosh"], [17.0, "whoosh"],
+    ...[0, 1, 2, 3, 4].map((i) => [18.6 + i * 0.55, "tick"]), [21.7, "swish"], [23.4, "boom"], [23.45, "key"],
+    [25.8, "whoosh"],
+    ...SENDS.flatMap((s, k) => {
+      const hero = k === 0, selStart = s.at + (hero ? 0.6 : 0.1), shot = selStart + (hero ? 1.2 : 0.5) + 0.05, arrive = s.fly + (hero ? 1.25 : 0.8);
+      return [[selStart, "press"], [shot, s.rec ? "rec" : "shutter"], [s.fly, "trail"], [arrive, "sent"]];
+    }),
+    [46.4, "whoosh"], [47.2, "impact"], [48.0, "impact"], [48.8, "impact"],
+    ...[0, 1, 2, 3].map((i) => [53.4 + i * 0.45, "tick"]), [58.3, "bell"],
+  ];
+  window.SOUNDS = CUES.map(([t, kind]) => ({ t, kind })).sort((a, b) => a.t - b.t);
+  window.SECTIONS = { s1: 0, s2: 4.4, s3: 25.8, s4: 34.4, s7: 58.3 };
+  // A darker score than the UI cut: D minor, slower, a sub pulse under the deliveries.
+  window.SCORE = {
+    bar: 3.2,
+    chords: [
+      [0, [38, 50, 57, 64]], [4.4, [38, 50, 57, 62, 65]], [7.6, [34, 46, 53, 58, 62]], [10.8, [41, 53, 57, 60, 65]], [14.0, [36, 48, 55, 60, 64]],
+      [17.4, [34, 46, 53, 57, 62]], [20.6, [33, 45, 52, 57, 61]], [23.4, [38, 50, 57, 62, 65]],
+      [25.8, [38, 50, 57, 62, 65]], [29.0, [34, 46, 53, 58, 62]], [32.2, [41, 53, 57, 60, 65]], [35.4, [36, 48, 55, 60, 64]],
+      [38.6, [38, 50, 57, 62, 65]], [41.8, [34, 46, 53, 58, 62]], [45.0, [41, 53, 57, 60, 65]], [48.2, [36, 48, 55, 60, 64]],
+      [51.4, [34, 46, 53, 58, 62]], [54.6, [36, 48, 55, 60, 64]], [58.3, [38, 50, 57, 62, 64, 69]],
+    ],
+    pulse: [[25.8, 46.4], [47.0, 58.0]],
+    arp: [[30.4, 46.4]],
+  };
+  window.render(parseFloat((location.hash.match(/t=([\d.]+)/) || [0, "0"])[1]));
+</script>

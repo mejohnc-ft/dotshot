@@ -11,7 +11,9 @@ if (!cuesPath || !musicPath || !sfxPath) {
   console.error("usage: soundtrack.mjs <cues.json> <music.wav> <sfx.wav>");
   process.exit(2);
 }
-const { duration, sections: S, sounds } = JSON.parse(readFileSync(cuesPath, "utf8"));
+const { duration, sections: S, sounds, score } = JSON.parse(readFileSync(cuesPath, "utf8"));
+// A scene can bring its own score ({bar, chords: [[time, [midi…]]…], pulse: [[from, to]…], arp: [[from, to]…]});
+// otherwise the default score below follows the scene's sections.
 
 const SR = 48000;
 const N = Math.ceil(duration * SR);
@@ -39,15 +41,18 @@ const adsr = (t, len, a, rel) => Math.min(1, t / a) * Math.min(1, Math.max(0, (l
 // ---- score ------------------------------------------------------------------------------------
 // Title: Dmaj9 swell. Problem: a suspended, unresolved walk. Product scenes: D – A/C# – Bm7 – Gmaj9
 // with a soft arpeggio. End: back home to Dmaj9 with a bell.
-const BAR = 2.5, EIGHTH = BAR / 8;
-const chords = [
+const BAR = score?.bar ?? 2.5, EIGHTH = BAR / 8;
+const inRanges = (t, ranges) => ranges.some(([a, b]) => t >= a && t < b);
+const chords = score ? score.chords.map(([t, notes]) => [t, notes]) : [
   [S.s1, [50, 57, 61, 64, 66]],
   [S.s2, [47, 54, 57, 62, 66]], [S.s2 + BAR, [43, 55, 59, 62, 66]], [S.s2 + 2 * BAR, [40, 55, 59, 62, 67]],
   [S.s2 + 3 * BAR, [45, 57, 62, 64, 69]], [S.s3 - 1.1, [45, 57, 61, 64, 67]],
 ];
-const LOOP = [[50, 57, 62, 66, 69], [49, 57, 61, 64, 69], [47, 57, 62, 66, 69], [43, 57, 62, 66, 71]];
-for (let t = S.s3, i = 0; t < S.s7 - 0.01; t += BAR, i++) chords.push([t, LOOP[i % 4]]);
-chords.push([S.s7, [50, 57, 61, 64, 66, 69]]);
+if (!score) {
+  const LOOP = [[50, 57, 62, 66, 69], [49, 57, 61, 64, 69], [47, 57, 62, 66, 69], [43, 57, 62, 66, 71]];
+  for (let t = S.s3, i = 0; t < S.s7 - 0.01; t += BAR, i++) chords.push([t, LOOP[i % 4]]);
+  chords.push([S.s7, [50, 57, 61, 64, 66, 69]]);
+}
 chords.sort((a, b) => a[0] - b[0]);
 
 chords.forEach(([start, notes], k) => {
@@ -67,34 +72,46 @@ chords.forEach(([start, notes], k) => {
       });
     });
   });
-  // Bass from the product scenes on: the chord root an octave down.
-  if (start >= S.s3 - 1.2) {
-    const f = hz(notes[0] - 12);
+  // Bass: the chord root an octave down from the product scenes on (a scene score voices its own low root).
+  if (score || start >= S.s3 - 1.2) {
+    const f = hz(score ? notes[0] : notes[0] - 12);
     add(music, start, len, 0, (t) => 0.05 * (Math.sin(TAU * f * t) + 0.45 * Math.sin(TAU * 2 * f * t) + 0.15 * Math.sin(TAU * 3 * f * t)) * adsr(t, len, 0.25, 0.9));
   }
 });
 
 // Arpeggio: upper chord tones in eighths while the product is on screen.
 const ARP = [1, 3, 2, 4, 3, 2, 4, 1];
-for (let t = S.s3, n = 0; t < S.s7 - EIGHTH; t += EIGHTH, n++) {
+const arpStep = score ? BAR / 4 : EIGHTH;
+for (let t = score ? Math.min(...score.arp.map(([a]) => a)) : S.s3, n = 0; t < (score ? duration : S.s7) - arpStep; t += arpStep, n++) {
+  if (score && !inRanges(t, score.arp)) continue;
   const chord = [...chords].reverse().find(([s]) => s <= t + 1e-6)[1];
   const m = chord[ARP[n % 8] % chord.length] + 12;
   const f = hz(m);
   const accent = n % 8 === 0 ? 1 : n % 2 === 0 ? 0.8 : 0.62;
-  const build = t < S.s4 ? 0.75 : 1;  // a little more energy after the first capture lands
+  const build = score ? 0.6 : t < S.s4 ? 0.75 : 1;  // a little more energy after the first capture lands
   add(music, t, 1.2, n % 2 ? 0.35 : -0.35, (x) =>
     0.05 * accent * build * Math.min(1, x / 0.004) * Math.exp(-x * 5.5) * (Math.sin(TAU * f * x) + (0.3 * Math.sin(TAU * 2 * f * x) + 0.12 * Math.sin(TAU * 3 * f * x)) * Math.exp(-x * 12)));
 }
 
 // Air: a quiet two-octave-up echo of the arpeggio's downbeats.
-for (let t = S.s4, n = 0; t < S.s7 - EIGHTH; t += EIGHTH * 2, n++) {
+for (let t = score ? duration : S.s4, n = 0; t < S.s7 - EIGHTH; t += EIGHTH * 2, n++) {
   const chord = [...chords].reverse().find(([s]) => s <= t + 1e-6)[1];
   const f = hz(chord[ARP[(n * 2) % 8] % chord.length] + 24);
   add(music, t + 0.01, 0.9, n % 2 ? -0.6 : 0.6, (x) => 0.012 * Math.min(1, x / 0.004) * Math.exp(-x * 7) * Math.sin(TAU * f * x));
 }
 
+// A scene score's pulse: a sub-bass thump on every beat, accented on the downbeat.
+if (score) {
+  for (const [a, b] of score.pulse) {
+    for (let t = a, n = 0; t < b; t += BAR / 4, n++) {
+      const g = n % 4 === 0 ? 0.16 : 0.09;
+      add(music, t, 0.6, 0, (x) => g * Math.min(1, x / 0.003) * Math.exp(-x * 9) * Math.sin(TAU * (58 * x - 40 * x * x)));
+    }
+  }
+}
+
 // Problem scene: a slow, low pulse for tension.
-for (let t = S.s2 + 0.3; t < S.s3 - 1.2; t += BAR / 2) {
+for (let t = score ? duration : S.s2 + 0.3; t < S.s3 - 1.2; t += BAR / 2) {
   add(music, t, 1.0, 0, (x) => 0.045 * Math.exp(-x * 4) * (Math.sin(TAU * hz(38) * x) + 0.4 * Math.sin(TAU * hz(50) * x)));
 }
 
@@ -136,6 +153,26 @@ const SOUND = {
   rise(at) { [86, 90, 93, 98].forEach((m, k) => add(sfx, at + k * 0.07, 1.4, (k - 1.5) * 0.3, (t) => 0.035 * Math.min(1, t / 0.01) * Math.exp(-t * 3.2) * Math.sin(TAU * hz(m) * t))); },
   rec(at) { [[660, 0], [990, 0.11]].forEach(([f, d]) => add(sfx, at + d, 0.2, 0, (t) => 0.06 * adsr(t, 0.12, 0.004, 0.04) * Math.sin(TAU * f * t))); },
   recstop(at) { [[990, 0], [660, 0.11]].forEach(([f, d]) => add(sfx, at + d, 0.2, 0, (t) => 0.06 * adsr(t, 0.12, 0.004, 0.04) * Math.sin(TAU * f * t))); },
+  boom(at) {
+    const l = lp(300);
+    add(sfx, at, 3.2, 0, (t) => Math.min(1, t / 0.01) * Math.exp(-t * 1.4) * (0.34 * Math.sin(TAU * (46 * t - 5 * t * t)) + 0.1 * l(rand())));
+  },
+  impact(at) {
+    const l = lp(900);
+    add(sfx, at, 1.2, 0, (t) => Math.min(1, t / 0.004) * (0.26 * Math.exp(-t * 5) * Math.sin(TAU * (78 * t - 30 * t * t)) + 0.08 * Math.exp(-t * 30) * l(rand())));
+  },
+  whoosh(at) {
+    let y = 0;
+    add(sfx, at, 1.0, 0, (t) => {
+      const fc = 200 + 3800 * Math.pow(t / 1.0, 1.6), a = 1 - Math.exp(-TAU * fc / SR);
+      y += a * (rand() - y);
+      return 0.12 * Math.sin(Math.PI * Math.min(1, t / 1.0)) ** 1.5 * y;
+    });
+  },
+  trail(at) {
+    add(sfx, at, 1.3, 0.2, (t) => 0.06 * Math.sin(Math.PI * Math.min(1, t / 1.3)) * Math.sin(TAU * (320 * t + 520 * t * t)));
+    add(sfx, at, 1.3, -0.2, (t) => 0.025 * Math.sin(Math.PI * Math.min(1, t / 1.3)) * Math.sin(TAU * (640 * t + 1040 * t * t)));
+  },
   bell(at) {
     [[hz(74), 0, 0], [hz(81), 0.16, 0.25], [hz(86), 0.32, -0.25]].forEach(([f, d, pan]) =>
       add(sfx, at + d, 3.4, pan, (t) => 0.06 * Math.min(1, t / 0.003) * Math.exp(-t * 1.3) * Math.sin(TAU * f * t + 2.2 * Math.exp(-t * 3) * Math.sin(TAU * 3.5 * f * t))));
