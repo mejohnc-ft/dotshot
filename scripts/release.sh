@@ -8,6 +8,7 @@
 #   DOTSHOT_NOTARY_PROFILE     keychain profile from `xcrun notarytool store-credentials`
 #   or DOTSHOT_NOTARY_KEY / DOTSHOT_NOTARY_KEY_ID / DOTSHOT_NOTARY_ISSUER   App Store Connect API key (CI)
 #   DOTSHOT_REQUIRE_NOTARIZATION=1   fail instead of producing an unnotarized build
+#   DOTSHOT_SKIP_TESTS=1             skip scripts/test.sh (the release workflow runs it in a separate job)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -20,8 +21,12 @@ ZIP="$OUT/dotshot-$VERSION.zip"
 rm -rf "$OUT"
 mkdir -p "$OUT"
 
-echo "==> tests"
-"$ROOT/scripts/test.sh"
+if [ "${DOTSHOT_SKIP_TESTS:-0}" = 1 ]; then
+  echo "==> tests skipped (DOTSHOT_SKIP_TESTS=1; CI runs them in an earlier job)"
+else
+  echo "==> tests"
+  "$ROOT/scripts/test.sh"
+fi
 
 echo "==> build $VERSION"
 if [ -n "${DOTSHOT_SIGNING_IDENTITY:-}" ]; then
