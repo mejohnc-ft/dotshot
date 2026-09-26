@@ -43,18 +43,18 @@
 <div class="bars"><div style="height:30%"></div><div style="height:32%"></div><div style="height:29%"></div><div style="height:31%"></div><div style="height:33%"></div><div style="height:30%"></div><div style="height:34%"></div><div style="height:31%"></div><div style="height:78%;background:linear-gradient(#ff8a8a,#e03131)"></div><div style="height:81%;background:linear-gradient(#ff8a8a,#e03131)"></div><div style="height:79%;background:linear-gradient(#ff8a8a,#e03131)"></div><div style="height:83%;background:linear-gradient(#ff8a8a,#e03131)"></div></div></div>
 <div class="v" id="login"><form><h2 style="margin:0 0 20px">Sign in</h2><label>Email</label><input value="dev@example.com"><label>Password</label><input type="password" value="hunter22"><div class="err">Invalid credentials. 2 attempts remaining.</div><br><button type="button">Continue</button></form></div>
 
-<div class="v" id="training"><div class="top"><h2>train/loss</h2><span class="run">llama-8b-sft · run-42 · spark-cluster (2× GB10)</span></div>
+<div class="v" id="training"><div class="top"><h2>train/loss</h2><span class="run">llama-8b-sft · run-42 · spark-cluster (DGX Spark)</span></div>
 <div class="cards"><div class="card">step<b>5,120</b></div><div class="card">learning rate<b>1.0e-4</b></div><div class="card bad">grad norm<b>14.2 ↑</b></div><div class="card bad">loss<b>2.91 ↑</b></div></div>
 <svg width="840" height="400" viewBox="0 0 840 400"><g stroke="#262c3d"><path d="M50 30H830M50 110H830M50 190H830M50 270H830M50 350H830"/></g>
 <g fill="#8b93b0" font-size="13" font-family="-apple-system,sans-serif"><text x="10" y="35">3.5</text><text x="10" y="115">3.0</text><text x="10" y="195">2.5</text><text x="10" y="275">2.0</text><text x="10" y="355">1.5</text>
 <text x="50" y="378">0</text><text x="230" y="378">1k</text><text x="410" y="378">2k</text><text x="590" y="378">3k</text><text x="770" y="378">4k steps</text></g>
 <path d="M50 40 C120 150,200 230,300 262 S480 292,560 300 S680 306,740 308 L760 312 L772 150 L782 96 L792 120 L806 84 L818 110 L830 92" fill="none" stroke="#6c8cff" stroke-width="3"/>
 <path d="M752 30V350" stroke="#e3b341" stroke-dasharray="5 5" stroke-width="2"/><text x="740" y="52" text-anchor="end" fill="#e3b341" font-size="14" font-family="-apple-system,sans-serif">warmup ends (lr 2e-5 → 1e-4)</text></svg></div>
-<div class="v" id="rocprof"><h2>rocprofv3 · kernel summary</h2><div class="sub">mi350x-hotaisle · gfx950 · 1× MI350X · decode step, batch 64</div>
-<table><tr><th>Kernel</th><th>Calls</th><th>Total ms</th><th>%</th><th>VALU util</th><th>LDS bank conf.</th><th>HBM BW</th></tr>
-<tr class="hot"><td>gemm_bf16_tile64</td><td>1,024</td><td>1,452.8</td><td class="r">38.1%</td><td class="y">41%</td><td class="r">31.4%</td><td>3.1 TB/s</td></tr>
-<tr><td>flash_attn_fwd_v3</td><td>512</td><td>802.6</td><td>21.0%</td><td>78%</td><td>2.1%</td><td>5.4 TB/s</td></tr>
-<tr><td>rms_norm_fused</td><td>2,048</td><td>311.0</td><td>8.2%</td><td>63%</td><td>0.4%</td><td>6.2 TB/s</td></tr>
-<tr><td>rotary_embed</td><td>1,024</td><td>188.4</td><td>4.9%</td><td>55%</td><td>0.0%</td><td>4.8 TB/s</td></tr>
-<tr><td>allreduce_bf16</td><td>256</td><td>141.9</td><td>3.7%</td><td>12%</td><td>0.0%</td><td>1.9 TB/s</td></tr></table></div>
+<div class="v" id="rocprof"><h2>rocprofv3 · kernel summary</h2><div class="sub">rocm-cluster · 2× Radeon AI PRO R9700 · ROCm · decode step, batch 16</div>
+<table><tr><th>Kernel</th><th>Calls</th><th>Total ms</th><th>%</th><th>VALU util</th><th>LDS bank conf.</th><th>Mem BW</th></tr>
+<tr class="hot"><td>gemm_bf16_tile64</td><td>1,024</td><td>1,452.8</td><td class="r">38.1%</td><td class="y">41%</td><td class="r">31.4%</td><td>212 GB/s</td></tr>
+<tr><td>flash_attn_fwd_v3</td><td>512</td><td>802.6</td><td>21.0%</td><td>78%</td><td>2.1%</td><td>498 GB/s</td></tr>
+<tr><td>rms_norm_fused</td><td>2,048</td><td>311.0</td><td>8.2%</td><td>63%</td><td>0.4%</td><td>541 GB/s</td></tr>
+<tr><td>rotary_embed</td><td>1,024</td><td>188.4</td><td>4.9%</td><td>55%</td><td>0.0%</td><td>402 GB/s</td></tr>
+<tr><td>allreduce_bf16</td><td>256</td><td>141.9</td><td>3.7%</td><td>12%</td><td>0.0%</td><td>96 GB/s</td></tr></table></div>
 <script>document.getElementById(location.hash.slice(1)||"settings").classList.add("on")</script>

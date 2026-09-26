@@ -15,7 +15,7 @@ NODE_DIR="$ROOT/build/media/node"
 IMAGES="$ROOT/docs/images"
 CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 
-[ -f "$RAW/pill-expanded-mi350x.png" ] && [ -f "$RAW/recording-ready.png" ] \
+[ -f "$RAW/pill-expanded-rocm.png" ] && [ -f "$RAW/recording-ready.png" ] \
   || { echo "Run scripts/docs/capture-media.sh first." >&2; exit 1; }
 command -v ffmpeg >/dev/null || { echo "ffmpeg is required (brew install ffmpeg)." >&2; exit 1; }
 command -v node >/dev/null || { echo "Node.js is required (brew install node)." >&2; exit 1; }
@@ -79,7 +79,7 @@ img{position:absolute;inset:0;width:100%}
 .p{width:128px;height:128px;border-radius:50%;background:#b58900;display:grid;place-items:center;box-shadow:0 0 0 12px rgba(181,137,0,.28),0 20px 50px rgba(0,0,0,.5)}
 .p i{margin-left:10px;border-left:44px solid #1b1500;border-top:27px solid transparent;border-bottom:27px solid transparent}
 small{font-weight:500;font-size:19px;color:#c9c3ad}
-</style><img src="file://$IMAGES/intro-poster.png"><div class="d"></div><div class="c"><div class="p"><i></i></div>Watch the 80-second intro<small>DGX Spark · MI350X · Mac Studio · NAS · CI</small></div>
+</style><img src="file://$IMAGES/intro-poster.png"><div class="d"></div><div class="c"><div class="p"><i></i></div>Watch the 80-second intro<small>Spark cluster · ROCm cluster · Dev Mac · NAS</small></div>
 HTML
 "$CHROME" --headless=new --disable-gpu --hide-scrollbars --allow-file-access-from-files --force-device-scale-factor=1 --window-size=1280,720 \
   --screenshot="$IMAGES/intro-thumb.png" "file://$WORK/play.html" >/dev/null 2>&1

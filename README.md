@@ -33,7 +33,7 @@ Files travel over the SSH or Tailscale connection you already have. On the
 destination, dotshot needs nothing but a folder the SSH account can write to.
 
 <p align="center">
-  <a href="https://mejohnc-ft.github.io/dotshot/#intro"><img src="docs/images/intro-thumb.png" width="720" alt="Watch the 80-second dotshot intro: screenshots to a DGX Spark cluster and an MI350X box, a recording to a Mac Studio, eval results to a NAS, and setup"></a>
+  <a href="https://mejohnc-ft.github.io/dotshot/#intro"><img src="docs/images/intro-thumb.png" width="720" alt="Watch the 80-second dotshot intro: screenshots to a Spark cluster and a ROCm cluster, a recording to a Dev Mac, eval results to a NAS, and setup"></a>
 </p>
 
 ## Features

@@ -108,7 +108,7 @@
   .ficon { width: 14px; height: 17px; border-radius: 2px; background: #fff; box-shadow: 0 0 0 1px #c7c7cc; position: relative; }
   .ficon::after { content: ""; position: absolute; left: 3px; right: 3px; top: 5px; height: 1.5px; background: #c7c7cc; box-shadow: 0 3px 0 #c7c7cc, 0 6px 0 #c7c7cc; }
   .ghost { position: absolute; display: flex; align-items: center; gap: 7px; font-size: 12px; color: #fff; background: rgba(10, 100, 214, 0.85); padding: 5px 9px; border-radius: 7px; z-index: 7; }
-  .tiles { position: absolute; right: 18px; bottom: 16px; width: 450px; transform-origin: 100% 100%; }
+  .tiles { position: absolute; right: 18px; bottom: 16px; width: 320px; transform-origin: 100% 100%; }
   .tilehi { position: absolute; border-radius: 10px; box-shadow: 0 0 0 3px #fdf6e3 inset; background: rgba(255, 255, 255, 0.16); }
 
   /* recording */
@@ -134,9 +134,8 @@
 
   /* fleet montage */
   .fleet-title { position: absolute; left: 0; right: 0; top: 60px; text-align: center; font-size: 38px; font-weight: 700; letter-spacing: -0.025em; }
-  .cards { position: absolute; left: 70px; right: 70px; top: 176px; display: grid; grid-template-columns: repeat(6, 1fr); gap: 18px; }
-  .card { grid-column: span 2; padding: 18px 20px 16px; border-radius: 16px; background: rgba(7, 54, 66, 0.92); box-shadow: 0 0 0 1px rgba(238, 232, 213, 0.14), 0 16px 36px rgba(0, 0, 0, 0.4); opacity: 0; }
-  .card:nth-child(4) { grid-column: 2 / span 2; } .card:nth-child(5) { grid-column: 4 / span 2; }
+  .cards { position: absolute; left: 170px; right: 170px; top: 170px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+  .card { padding: 18px 20px 16px; border-radius: 16px; background: rgba(7, 54, 66, 0.92); box-shadow: 0 0 0 1px rgba(238, 232, 213, 0.14), 0 16px 36px rgba(0, 0, 0, 0.4); opacity: 0; }
   .card .row { display: flex; align-items: center; gap: 10px; }
   .card b { font-size: 21px; letter-spacing: -0.01em; }
   .card .tag { margin-left: auto; font: 600 11px ui-monospace, Menlo, monospace; color: #1b1500; background: #e0b43c; padding: 3px 7px; border-radius: 6px; }
@@ -166,22 +165,20 @@
   <div id="s2map">
     <svg class="links" viewBox="0 0 1280 720" id="s2links">
       <g fill="none" stroke="#2aa198" stroke-width="2" stroke-dasharray="7 7">
-        <path d="M430 350 C 560 350, 600 160, 740 160"/>
-        <path d="M430 355 C 560 355, 600 262, 740 262"/>
-        <path d="M430 360 C 560 360, 600 364, 740 364"/>
-        <path d="M430 365 C 560 365, 600 466, 740 466"/>
-        <path d="M430 370 C 560 370, 600 568, 740 568"/>
+        <path d="M430 350 C 560 350, 600 180, 740 180"/>
+        <path d="M430 356 C 560 356, 600 292, 740 292"/>
+        <path d="M430 362 C 560 362, 600 404, 740 404"/>
+        <path d="M430 368 C 560 368, 600 516, 740 516"/>
       </g>
     </svg>
     <div class="node me" style="top:318px">
       <svg width="44" height="34" viewBox="0 0 44 34"><rect x="5" y="2" width="34" height="23" rx="3" fill="none" stroke="#e0b43c" stroke-width="2.4"/><path d="M1 30 H43" stroke="#e0b43c" stroke-width="3" stroke-linecap="round"/></svg>
       <div><b>This Mac</b><span>where you're looking</span></div>
     </div>
-    <div class="node wide" style="left:740px;top:128px"><div><b>spark</b><span>DGX Spark cluster · 2× GB10 · CUDA</span></div><em class="tag">claude</em></div>
-    <div class="node wide" style="left:740px;top:230px"><div><b>mi350x</b><span>MI350X dev box · hot aisle · ROCm</span></div><em class="tag">codex</em></div>
-    <div class="node wide" style="left:740px;top:332px"><div><b>work</b><span>Mac Studio · app development</span></div><em class="tag">claude</em></div>
-    <div class="node wide" style="left:740px;top:434px"><div><b>nas</b><span>franklin · ZFS storage · archives</span></div></div>
-    <div class="node wide" style="left:740px;top:536px"><div><b>ci</b><span>CI runner · failing builds</span></div><em class="tag">codex</em></div>
+    <div class="node wide" style="left:740px;top:148px"><div><b>spark</b><span>Spark cluster · DGX Spark · CUDA</span></div><em class="tag">claude</em></div>
+    <div class="node wide" style="left:740px;top:260px"><div><b>rocm</b><span>ROCm cluster · 2× Radeon AI PRO R9700</span></div><em class="tag">codex</em></div>
+    <div class="node wide" style="left:740px;top:372px"><div><b>mac</b><span>Dev Mac · app development</span></div><em class="tag">claude</em></div>
+    <div class="node wide" style="left:740px;top:484px"><div><b>nas</b><span>NAS · ZFS storage · archives</span></div></div>
     <div class="thumb" id="s2thumb"><img src="raw/sample-training.png" alt=""></div>
     <div class="qmark" id="s2q">?</div>
   </div>
@@ -189,7 +186,7 @@
   <div class="chores" id="s2chores">
     <div><i>1</i>⇧⌘4, then find it on the Desktop</div>
     <div><i>2</i>Rename "Screenshot 2026-09-26 at 10.22.03"</div>
-    <div><i>3</i>scp it to the right one of five machines</div>
+    <div><i>3</i>scp it to the right one of four machines</div>
     <div><i>4</i>Work out its absolute path over there</div>
     <div><i>5</i>Paste that path into the agent</div>
   </div>
@@ -214,11 +211,11 @@
     <div class="overlay" id="s5pick" style="left:591px;top:194px;width:196px;height:172px;box-shadow:0 0 0 2px #c9a227 inset;background:rgba(181,137,0,0.14)"></div>
     <div class="selection" id="s5sel"><em id="s5dims"></em></div>
     <img class="ready" id="s5ready" src="raw/recording-ready.png" alt="">
-    <div class="notification" id="s5note"><img src="raw/app-icon.png" alt=""><div><b>Sent to work</b><span>/Users/dev/inbound/sign-in-invalid-credentials-20260926-103100.mov (path copied)</span></div><small>now</small></div>
+    <div class="notification" id="s5note"><img src="raw/app-icon.png" alt=""><div><b>Sent to mac</b><span>/Users/dev/inbound/sign-in-invalid-credentials-20260926-103100.mov (path copied)</span></div><small>now</small></div>
     <div class="keycap" id="s5key"></div>
     <svg class="cursor" id="s5cursor" viewBox="0 0 18 26"><path d="M1 1 L1 20 L6 15.5 L9.5 23.5 L13 22 L9.5 14 L16 14 Z" fill="#000" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg>
     <svg class="crosshair" id="s5cross" viewBox="0 0 30 30"><path d="M15 2 V28 M2 15 H28" stroke="#fff" stroke-width="2.4"/><path d="M15 2 V28 M2 15 H28" stroke="#000" stroke-width="1"/></svg>
-    <div class="chapter">RECORDING → WORK</div>
+    <div class="chapter">RECORDING → MAC</div>
     <div class="caption" id="s5cap"></div>
   </div>
 </section>
@@ -238,7 +235,7 @@
     </div>
     <img class="nub" id="s6nub" src="raw/pill-collapsed.png" alt="">
     <img class="tiles" id="s6tiles" src="raw/pill-drop.png" alt="">
-    <div class="tilehi" id="s6hi" style="left:503px;top:416px;width:138px;height:98px"></div>
+    <div class="tilehi" id="s6hi" style="left:786px;top:416px;width:146px;height:98px"></div>
     <div class="ghost" id="s6ghost"><span class="ficon"></span>eval-results-run-42.parquet</div>
     <div class="notification" id="s6note"><img src="raw/app-icon.png" alt=""><div><b>Sent to nas</b><span>/srv/inbound/eval-results-run-42.parquet (path copied)</span></div><small>now</small></div>
     <svg class="cursor" id="s6cursor" viewBox="0 0 18 26"><path d="M1 1 L1 20 L6 15.5 L9.5 23.5 L13 22 L9.5 14 L16 14 Z" fill="#000" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg>
@@ -252,7 +249,7 @@
   <div class="bg"></div><div class="grid"></div>
   <div class="fleet-title">One shortcut. <span class="gold">Every machine.</span></div>
   <div class="cards" id="s7cards"></div>
-  <div class="fleet-sub" id="s7sub">Each path lands on your clipboard, ready for the agent on that machine.<br>Switch with the pill, a drop tile, or <kbd>dotshot://image?dest=mi350x</kbd>.</div>
+  <div class="fleet-sub" id="s7sub">Each path lands on your clipboard, ready for the agent on that machine.<br>Switch with the pill, a drop tile, or <kbd>dotshot://image?dest=rocm</kbd>.</div>
 </section>
 
 <!-- 8 · setup and guarantees -->
@@ -308,7 +305,7 @@
   // Base timeline (seconds, scene-local): hover 1.1 · Shot 2.3 · drag 2.75–4.05 · OCR 4.3–7.0 · Sent 6.9 · agent 9.3+.
   // A destination switch inserts SWITCH seconds after the hover: click the name, pick from the menu.
   const SWITCH = 1.6;
-  const DESTS = ["spark", "mi350x", "work", "nas", "ci"];
+  const DESTS = ["spark", "rocm", "mac", "nas"];
   const SHOT_SCENES = {
     s3: {
       chapter: "SCREENSHOT → SPARK", app: "Safari", clock: "Sat 10:22", url: "wandb.local/llama-8b-sft/runs/42", img: "raw/sample-training.png",
@@ -325,13 +322,13 @@
       ],
       captions: [[2.75, "Hover the nub and click <kbd>Shot</kbd>, or press <kbd>⌃⌥⌘S</kbd>"], [4.3, "Drag over the loss curve"],
         [6.9, "Offline OCR names the file after what's on screen"], [9.3, "Sent over SSH to <kbd>spark</kbd>. The remote path is on your clipboard."],
-        [99, "Claude on the DGX Spark cluster reads it"]],
+        [99, "Claude on the Spark cluster reads it"]],
     },
     s4: {
-      chapter: "SCREENSHOT → MI350X", app: "Safari", clock: "Sat 10:27", url: "localhost:8050/rocprof/decode-b64", img: "raw/sample-rocprof.png",
-      pill: "raw/pill-expanded-spark.png", switchTo: { pill: "raw/pill-expanded-mi350x.png", index: 1 }, sel: [62, 92, 592, 262],
+      chapter: "SCREENSHOT → ROCM", app: "Safari", clock: "Sat 10:27", url: "localhost:8050/rocprof/decode-b16", img: "raw/sample-rocprof.png",
+      pill: "raw/pill-expanded-spark.png", switchTo: { pill: "raw/pill-expanded-rocm.png", index: 1 }, sel: [62, 92, 592, 262],
       ocr: "rocprofv3 · kernel summary · gemm_bf16_tile64 38.1%…", name: "rocprofv3-kernel-summary-gemm-bf16-tile64-20260926-102700.png",
-      dest: "mi350x", dir: "/home/dev/inbound", title: "ssh mi350x-hotaisle — codex", cwd: "dev@mi350x-hotaisle:~/kernels",
+      dest: "rocm", dir: "/home/dev/inbound", title: "ssh rocm-cluster — codex", cwd: "dev@rocm-cluster:~/kernels",
       ask: "Fix the top kernel ", agent: "codex",
       lines: [
         "Read rocprofv3-kernel-summary-gemm-bf16-tile64-20260926-102700.png",
@@ -341,8 +338,8 @@
         "&nbsp;&nbsp;<span class=\"green\">re-profiling: rocprofv3 --kernel-trace ./decode_bench</span>",
       ],
       captions: [[1.8, "Hover the nub"], [2.75 + SWITCH, "Click the destination to switch machines"], [4.3 + SWITCH, "Drag over the profiler table"],
-        [6.9 + SWITCH, "Named from the kernel table, offline"], [9.3 + SWITCH, "Sent to <kbd>mi350x</kbd> in the hot aisle"],
-        [99, "Codex on the MI350X box takes it from there"]],
+        [6.9 + SWITCH, "Named from the kernel table, offline"], [9.3 + SWITCH, "Sent to <kbd>rocm</kbd>, the ROCm cluster"],
+        [99, "Codex on the ROCm cluster takes it from there"]],
     },
   };
 
@@ -448,11 +445,10 @@
 
   // ---- fleet montage -----------------------------------------------------------------------------
   const FLEET = [
-    ["spark", "DGX Spark cluster · 2× GB10 · CUDA", "claude", "/home/dev/inbound/train-loss-llama-8b-sft-run-42-20260926-102200.png"],
-    ["mi350x", "MI350X dev box · hot aisle · ROCm", "codex", "/home/dev/inbound/rocprofv3-kernel-summary-gemm-bf16-tile64-20260926-102700.png"],
-    ["work", "Mac Studio · app development", "claude", "/Users/dev/inbound/sign-in-invalid-credentials-20260926-103100.mov"],
-    ["nas", "franklin · ZFS storage · archives", "", "/srv/inbound/eval-results-run-42.parquet"],
-    ["ci", "CI runner · failing builds", "codex", "/home/build/inbound/payment-form-test-failed-20260926-103600.png"],
+    ["spark", "Spark cluster · DGX Spark · CUDA", "claude", "/home/dev/inbound/train-loss-llama-8b-sft-run-42-20260926-102200.png"],
+    ["rocm", "ROCm cluster · 2× Radeon AI PRO R9700", "codex", "/home/dev/inbound/rocprofv3-kernel-summary-gemm-bf16-tile64-20260926-102700.png"],
+    ["mac", "Dev Mac · app development", "claude", "/Users/dev/inbound/sign-in-invalid-credentials-20260926-103100.mov"],
+    ["nas", "NAS · ZFS storage · archives", "", "/srv/inbound/eval-results-run-42.parquet"],
   ];
   $("s7cards").innerHTML = FLEET.map(([name, hw, agent]) => `<div class="card"><div class="row"><b>${name}</b><em class="tag ${agent ? "" : "plain"}">${agent || "storage"}</em></div><div class="hw">${hw}</div><div class="got"></div></div>`).join("");
 
@@ -537,7 +533,7 @@
 
   function dragDrop(t) {
     T = t;
-    const [cx, cy] = move([[0, 380, 440], [0.8, 190, 140], [1.1, 190, 140], [2.2, 900, 486], [2.7, 900, 486], [3.3, 572, 462], [3.9, 572, 462], [8, 572, 462]]);
+    const [cx, cy] = move([[0, 380, 440], [0.8, 190, 140], [1.1, 190, 140], [2.2, 900, 486], [2.7, 900, 486], [3.3, 858, 462], [3.9, 858, 462], [8, 858, 462]]);
     place($("s6cursor"), cx, cy);
     $("s6row").classList.toggle("sel", T >= 0.9);
     $("s6ghost").style.opacity = T >= 1.1 && T < 3.9 ? 1 : 0;
