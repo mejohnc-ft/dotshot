@@ -34,12 +34,18 @@ dotshot has no Dock icon. It lives as a small camera nub in a screen corner
 
 ## Opening dotshot the first time
 
-Each release's notes say whether the build is **notarized by Apple**.
+Release downloads are signed with a Developer ID
+(`Developer ID Application: Jonathan Christensen (5XFXZHC7GQ)`) and notarized by
+Apple. macOS asks once whether to open an app downloaded from the internet;
+click **Open**. To check a download yourself:
 
-- **Notarized builds** open normally.
-- **Builds that aren't notarized** are blocked by Gatekeeper the first time.
-  macOS shows a message such as *"Apple could not verify 'dotshot' is free of
-  malware"*. To open the app anyway:
+```bash
+spctl -a -vv /Applications/dotshot.app     # source=Notarized Developer ID
+```
+
+If you run a build that isn't notarized, such as one a fork published or an
+older artifact, Gatekeeper blocks it the first time with a message such as
+*"Apple could not verify 'dotshot' is free of malware"*. To open it anyway:
 
   1. Click **Done** in the message. Don't move the app to the Trash.
   2. Open **System Settings → Privacy & Security**.
@@ -128,11 +134,10 @@ Captures stay in `~/Shots`. To remove the old app afterward, run
 
 dotshot doesn't check for updates or connect to the internet on its own.
 
-- **DMG install:** download the new release, quit dotshot (hover the nub and click ×), and replace the app in Applications. Your settings are kept.
-  Builds that aren't notarized have a new code signature each release, so macOS
-  may ask for Screen Recording permission again. If captures come back blank,
-  turn dotshot off and on under **Privacy & Security → Screen & System Audio Recording**,
-  or run `tccutil reset ScreenCapture com.mejohnc.dotshot` and relaunch.
+- **DMG install:** download the new release, quit dotshot (hover the nub and click ×), and replace the app in Applications. Your settings and Screen Recording approval are kept.
+  If captures come back blank after an update, turn dotshot off and on under
+  **Privacy & Security → Screen & System Audio Recording**, or run
+  `tccutil reset ScreenCapture com.mejohnc.dotshot` and relaunch.
 - **Source install:** `git pull && ./scripts/install.sh`
 
 To get notified about new versions, **Watch → Custom → Releases** on the

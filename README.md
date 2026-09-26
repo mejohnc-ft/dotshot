@@ -75,9 +75,8 @@ Linux destination you can SSH into with a key.
 2. Open the DMG and drag **dotshot** to **Applications**.
 3. Open dotshot. Setup starts automatically.
 
-If macOS says it can't verify the app, see
-[Opening dotshot the first time](docs/INSTALL.md#opening-dotshot-the-first-time).
-To build from source instead, see [Build from source](docs/INSTALL.md#build-from-source).
+Releases are signed with a Developer ID and notarized by Apple, so dotshot opens
+like any other downloaded app. To build from source instead, see [Build from source](docs/INSTALL.md#build-from-source).
 
 ## Set up in five minutes
 
