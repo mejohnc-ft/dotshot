@@ -116,7 +116,7 @@ absolute_remote_dir() {
   case "$DEST_DIR" in
     "~/"*)
       local remote_home
-      remote_home="$(ssh "${SSH_OPTS[@]}" -- "$DEST_SSH" 'printf %s "$HOME"' 2>>"$LOG")" || return 1
+      remote_home="$(ssh "${SSH_OPTS[@]}" -- "$DEST_SSH" 'printf %s "$HOME"' </dev/null 2>>"$LOG")" || return 1
       [[ "$remote_home" = /* ]] || return 1
       printf '%s%s' "${remote_home%/}" "${DEST_DIR#\~}" ;;
     *) printf '%s' "$DEST_DIR" ;;
@@ -260,7 +260,9 @@ deliver() {
   part=".$name.$RANDOM$RANDOM.part"
   log "sending '$file' → $DEST_SSH:$remote_dir/$name"
   # No -q: it would hide ssh's own error (timed out, host down), which tells a dead host from missing SFTP.
-  if ! scp "${SSH_OPTS[@]}" -- "$file" "$DEST_SSH:$remote_dir/$part" 2>"$err" >/dev/null; then
+  # </dev/null on every ssh and scp: they read stdin, and would swallow the rest of a script or a
+  # `while read` loop that calls dotshot (found running setup from a script on macOS 14).
+  if ! scp "${SSH_OPTS[@]}" -- "$file" "$DEST_SSH:$remote_dir/$part" </dev/null 2>"$err" >/dev/null; then
     cat "$err" >> "$LOG"
     # No SFTP subsystem on the destination: stream the file through ssh instead (never `scp -O`,
     # whose legacy protocol lets the remote shell expand the path).
@@ -278,7 +280,7 @@ deliver() {
     f=$(q "$name"); n=1
     while [ -e \"\$f\" ] || [ -L \"\$f\" ]; do n=\$((n + 1)); f=$(q "$stem")-\$n$(q "${ext:+.$ext}"); done
     chmod 600 $(q "$part") && mv -- $(q "$part") \"\$f\" && printf %s \"\$f\""
-  if ! final="$(ssh "${SSH_OPTS[@]}" -- "$DEST_SSH" "sh -c $(q "$finalize")" 2>>"$LOG")" || [ -z "$final" ]; then
+  if ! final="$(ssh "${SSH_OPTS[@]}" -- "$DEST_SSH" "sh -c $(q "$finalize")" </dev/null 2>>"$LOG")" || [ -z "$final" ]; then
     fail_delivery "$file" "The file could not be put in place."
     return 1
   fi
@@ -404,7 +406,7 @@ check_destination() {
     cd \"\$target\" || exit 21
     [ -z \"\$(find . -maxdepth 0 \\( -perm -g+w -o -perm -o+w \\) -print)\" ] || exit 24
     [ -z \"\$(find . -maxdepth 0 \\( -perm -g+r -o -perm -o+r \\) -print)\" ] || echo dotshot-shared-folder
-    pwd -P")" 2>&1)"; status=$?
+    pwd -P")" </dev/null 2>&1)"; status=$?
   case "$status" in
     0) ;;
     20) echo "folder: could not be created with this account" >&2; return 1 ;;

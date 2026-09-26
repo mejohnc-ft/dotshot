@@ -44,7 +44,10 @@ cat > "$BIN/ssh" <<STUB
 $record
 [ "\${STUB_SSH_FAIL:-0}" = 1 ] && { echo "ssh: connect to host: Operation timed out" >&2; exit 255; }
 while [ "\$1" != "--" ]; do shift; done; shift 2
-HOME="\${STUB_REMOTE_HOME:-\$HOME}" /bin/sh -c "\$1"
+# Like real ssh, forward stdin to the remote command (and so consume it) unless stdin is a terminal.
+HOME="\${STUB_REMOTE_HOME:-\$HOME}" /bin/sh -c "\$1"; status=\$?
+cat >/dev/null 2>&1
+exit \$status
 STUB
 cat > "$BIN/sftp" <<STUB
 #!/bin/bash
@@ -269,6 +272,12 @@ check "missing file exits 1" equals "$?" "1"
 reset
 run bogus work
 check "unknown mode exits 2" equals "$?" "2"
+
+reset
+printf 'one' > "$TW/one.txt"; printf 'two' > "$TW/two.txt"
+sent=0
+printf '%s\n' "$TW/one.txt" "$TW/two.txt" | while read -r f; do /bin/bash "$SCRIPT" send work "$f" >/dev/null 2>&1; done
+check "a while-read loop sends every file (ssh doesn't eat stdin)" equals "$(ls "$REMOTE/work" | grep -c -E '^(one|two)-')" "2"
 
 # ── image mode ───────────────────────────────────────────────────────────────
 reset

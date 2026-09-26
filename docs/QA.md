@@ -38,6 +38,16 @@ setup with the script inside a freshly built app, the way a new user would:
 The report is written to `build/qa-container/report.md`. Your dotshot settings aren't touched. The
 containers' host keys are removed from `~/.ssh/known_hosts` afterwards.
 
+### First install on a clean Mac (macOS 14 VM)
+
+```bash
+./scripts/qa/macos-vm-qa.sh      # needs tart and ~25 GB; leaves the VM running for the GUI steps it prints
+```
+
+A clean macOS 14 Sonoma VM (Tart, on Apple's Virtualization framework) installs the notarized DMG as a
+quarantined download and checks it with Gatekeeper. It then runs `add`/`check`/`send` against a clean
+Linux destination and prints the GUI steps to click through in the VM window.
+
 ## Manual checklist
 
 Use a Mac user account where dotshot has never run, if possible. `DOTSHOT_CONFIG_DIR`
@@ -106,4 +116,5 @@ Tested on macOS 26.6.1 (Apple M5 Max), two displays.
 | Visual review of every window (pill expanded, collapsed, and drop; recording picker; all 8 setup steps) | Pass after fixes: gray pill buttons, truncated sidebar labels, drop-tile layout and mapping, slider tint, picker alignment, callout widths, contrast, pill height |
 | Found and fixed in QA | Wrong minimum macOS, host-only architecture, AppleScript injection in notifications, SSH password-prompt hangs, trailing `-` in sent names, notifications shown as Script Editor, off-screen pill after a display change |
 | New-user setup QA (`scripts/qa/setup-qa.sh`, 2026-09-26) | Pass: 31/31 against clean Debian destinations in Apple `container` 1.2.2 on macOS 26.6.1. It found two bugs, both now fixed: an unreachable host was retried over ssh (20 s instead of 10 s), because `scp -q` hid the connection error; and a long SSH connection-reuse window outlived a host going offline. |
+| Clean macOS 14.8 VM (Tart), 2026-09-26 | Gatekeeper: the quarantined DMG and app pass as *Notarized Developer ID*; the ticket is stapled; the app is universal. Scripted setup against a Linux destination (through an `~/.ssh/config` alias): pass. **Found and fixed:** in light mode the setup window was washed out (thin material, white-on-gold buttons, faint secondary text); the Screen Recording alert was hidden behind the floating setup window; the Permission step showed a checkmark without permission; ssh/scp swallowed stdin, breaking scripts and `while read` loops that call dotshot. Remaining VM-only quirk: SF Symbols occasionally fail to draw on first render under the VM's virtual GPU. Recheck on hardware. |
 | Manual GUI checklist above | **Not yet run.** Needs a person to click through permission, Test, capture, recording, drag and drop, and migration on the release DMG. |

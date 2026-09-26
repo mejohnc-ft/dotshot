@@ -60,6 +60,9 @@ First public release. **Shot Pill is now dotshot.**
 - Resize could produce a larger file
 - CRLF line endings or stray spaces in `destinations.tsv` broke delivery
 - OCR names mangled accented text
+- Light mode: washed-out setup and pill, white text on gold buttons, faint secondary text
+- The Screen Recording alert was hidden behind the setup window, and the Permission step showed a checkmark without permission
+- ssh and scp read stdin, which broke scripts and `while read` loops that call dotshot
 - Builds ran only on the macOS version and CPU architecture of the build machine
 - The pill's Shot and Vid buttons appeared gray instead of the accent color
 - Drop targets didn't fill the panel and didn't match the tiles with fewer than four destinations

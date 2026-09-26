@@ -515,7 +515,7 @@ struct RecordingPickerView: View {
         }
         .padding(28)
         .frame(width: RECORDING_PICKER.width - 28, height: RECORDING_PICKER.height - 28)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22))
+        .background(.thickMaterial, in: RoundedRectangle(cornerRadius: 22))
         .overlay(RoundedRectangle(cornerRadius: 22).strokeBorder(.white.opacity(0.14)))
         .shadow(color: .black.opacity(0.38), radius: 26, y: 12)
         .frame(width: RECORDING_PICKER.width, height: RECORDING_PICKER.height)
@@ -853,7 +853,7 @@ struct PillView: View {
         }
         .padding(10)
         .frame(width: dropGridSize(tiles.count).width, height: dropGridSize(tiles.count).height)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(.white.opacity(0.12)))
         .shadow(color: .black.opacity(0.32), radius: 18, y: 8)
     }
@@ -967,7 +967,7 @@ struct PillView: View {
         }
         .padding(16)
         .frame(width: EXPANDED.width, height: EXPANDED.height)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18))
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
         .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(.white.opacity(0.12)))
         .shadow(color: .black.opacity(0.32), radius: 18, y: 8)
     }
@@ -1060,7 +1060,8 @@ struct SetupView: View {
             }
         }
         .frame(width: 840, height: 610)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24))
+        // Thick, not ultra-thin: over a light wallpaper in light mode, thin materials wash text out.
+        .background(.thickMaterial, in: RoundedRectangle(cornerRadius: 24))
         .overlay(RoundedRectangle(cornerRadius: 24).strokeBorder(.white.opacity(0.14)))
         .overlay(alignment: .topTrailing) {
             Button(action: onFinish) {
@@ -1102,9 +1103,13 @@ struct SetupView: View {
                         Text(item.title)
                             .font(.system(size: 12.5, weight: step == item ? .semibold : .regular))
                             .lineLimit(1)
-                            .minimumScaleFactor(0.85)
                         Spacer()
-                        if item.rawValue < step.rawValue {
+                        if item == .permissions && !screenPermission && step.rawValue > item.rawValue {
+                            // Visited but not granted: don't show a tick that reads as "done".
+                            Image(systemName: "exclamationmark.circle.fill")
+                                .font(.system(size: 11))
+                                .foregroundStyle(STATUS_WARN)
+                        } else if item.rawValue < step.rawValue {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.system(size: 11))
                                 .foregroundStyle(accent)
@@ -1181,7 +1186,7 @@ struct SetupView: View {
             HStack(spacing: 14) {
                 Image(systemName: screenPermission ? "checkmark.shield.fill" : "lock.shield")
                     .font(.system(size: 34))
-                    .foregroundStyle(screenPermission ? Color.green : accent)
+                    .foregroundStyle(screenPermission ? STATUS_OK : accent)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(screenPermission ? "Permission granted" : "Permission still needed")
                         .font(.system(size: 16, weight: .semibold))
@@ -1874,7 +1879,9 @@ final class SetupController {
         setupPanel.isOpaque = false
         setupPanel.backgroundColor = .clear
         setupPanel.hasShadow = false
-        setupPanel.level = .floating
+        // Normal level, not floating: macOS shows the Screen Recording request as an alert, and a floating
+        // setup window hid it (found on a clean macOS 14 VM). Setup is activated when presented instead.
+        setupPanel.level = .normal
         setupPanel.sharingType = .readOnly
         setupPanel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         setupPanel.isReleasedWhenClosed = false
