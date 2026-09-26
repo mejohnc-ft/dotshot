@@ -4,17 +4,31 @@
 
 Public builds should be signed with a **Developer ID Application** certificate
 and notarized by Apple. That requires an [Apple Developer Program](https://developer.apple.com/programs/)
-membership.
+membership. Full Xcode is not needed; the Command Line Tools are enough.
 
-1. Create a *Developer ID Application* certificate (Xcode → Settings → Accounts → Manage Certificates, or developer.apple.com).
-2. Export it with its private key as a `.p12` file.
-3. Create an App Store Connect API key with the *Developer* role (Users and Access → Integrations → App Store Connect API) and download the `.p8`.
-4. Add these repository secrets (Settings → Secrets and variables → Actions):
+1. **Create a certificate signing request and key** (the key never leaves this Mac):
+   ```bash
+   mkdir -p ~/.dotshot-signing && chmod 700 ~/.dotshot-signing && cd ~/.dotshot-signing
+   openssl genrsa -out devid.key 2048 && chmod 600 devid.key
+   openssl req -new -key devid.key -out DeveloperID.certSigningRequest -subj "/CN=dotshot Developer ID/C=US"
+   ```
+2. **Create the certificate** at [developer.apple.com → Certificates → +](https://developer.apple.com/account/resources/certificates/add):
+   choose *Developer ID Application* (G2 Sub-CA), upload the `.certSigningRequest`, and download the `.cer`.
+3. **Create an App Store Connect API key** at [App Store Connect → Users and Access → Integrations](https://appstoreconnect.apple.com/access/integrations/api)
+   with the *Developer* role. Download the `.p8` (only possible once) and note the Key ID and Issuer ID.
+4. **Install everything** with one command. It checks that the certificate matches the key, installs
+   Apple's Developer ID intermediate certificate if needed, imports the identity, stores a `dotshot-notary`
+   notarization profile, and with `--github` sets the six repository secrets below:
+   ```bash
+   ./scripts/setup-signing.sh --cer ~/Downloads/developerID_application.cer --key ~/.dotshot-signing/devid.key \
+     --p8 ~/Downloads/AuthKey_XXXX.p8 --key-id XXXX --issuer <issuer-id> --github
+   ```
+   The first signed build may ask whether `codesign` can use the key; choose **Always Allow**.
 
 | Secret | Value |
 | --- | --- |
-| `DEVELOPER_ID_P12_BASE64` | `base64 -i DeveloperID.p12 \| pbcopy` |
-| `DEVELOPER_ID_P12_PASSWORD` | The `.p12` export password |
+| `DEVELOPER_ID_P12_BASE64` | The identity as a base64 `.p12` |
+| `DEVELOPER_ID_P12_PASSWORD` | The `.p12` password |
 | `DEVELOPER_ID_IDENTITY` | e.g. `Developer ID Application: Jane Doe (TEAMID1234)` |
 | `NOTARY_API_KEY_P8` | Contents of `AuthKey_XXXX.p8` |
 | `NOTARY_API_KEY_ID` | The key ID |
@@ -24,10 +38,9 @@ Without these secrets, the release workflow still works but produces an
 **ad-hoc signed** build. Users then need the Gatekeeper steps in
 [INSTALL.md](INSTALL.md#opening-dotshot-the-first-time), and the release notes say so.
 
-To sign and notarize locally instead:
+To sign and notarize locally:
 
 ```bash
-xcrun notarytool store-credentials dotshot-notary --key AuthKey_XXXX.p8 --key-id XXXX --issuer <issuer-id>
 DOTSHOT_SIGNING_IDENTITY="Developer ID Application: Jane Doe (TEAMID1234)" \
 DOTSHOT_NOTARY_PROFILE=dotshot-notary \
 DOTSHOT_REQUIRE_NOTARIZATION=1 \

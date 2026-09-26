@@ -12,7 +12,7 @@ trap 'rm -rf "$TMP"' EXIT
 echo "==> shell syntax"
 for script in "$ROOT"/scripts/*.sh "$ROOT"/Tests/shell/*.sh; do bash -n "$script"; done
 if command -v shellcheck >/dev/null; then
-  shellcheck -S warning "$ROOT"/scripts/*.sh
+  shellcheck -S warning "$ROOT"/scripts/*.sh "$ROOT"/scripts/docs/*.sh
 fi
 
 echo "==> core unit tests"

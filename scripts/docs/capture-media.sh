@@ -78,7 +78,7 @@ shoot pill-expanded 400 DOTSHOT_DEMO_STATE=expanded
 shoot pill-collapsed 40 DOTSHOT_DEMO_STATE=collapsed
 shoot pill-drop 300 DOTSHOT_DEMO_STATE=drop
 shoot recording-picker 600 DOTSHOT_DEMO_STATE=collapsed DOTSHOT_DEMO_PICKER=1
-for step in welcome permissions connect destinations test login appearance done; do
+for step in welcome permissions connect destinations test login appearance "done"; do
   shoot "setup-$step" 800 DOTSHOT_DEMO_STATE=collapsed DOTSHOT_DEMO_SETUP="$step"
 done
 
@@ -92,7 +92,7 @@ echo "==> post-recording panel"
 DOTSHOT_CAPTURABLE=1 "$APP/Contents/Resources/panel" "Recording ready" "Send as-is, trim in QuickTime, or resize smaller." 0 "Send,Trim,Resize" "$WORK/Shots" >/dev/null 2>&1 &
 panel_pid=$!
 window=""
-for attempt in $(seq 1 30); do
+for _ in $(seq 1 30); do
   sleep 0.3
   window="$("$WORK/window-ids" "$panel_pid" | awk '$2 >= 300 { print $1; exit }')"
   [ -n "$window" ] && break
