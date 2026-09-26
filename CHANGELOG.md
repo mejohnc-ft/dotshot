@@ -63,6 +63,9 @@ First public release. **Shot Pill is now dotshot.**
 - Light mode: washed-out setup and pill, white text on gold buttons, faint secondary text
 - The Screen Recording alert was hidden behind the setup window, and the Permission step showed a checkmark without permission
 - ssh and scp read stdin, which broke scripts and `while read` loops that call dotshot
+- A `dotshot://setup` link that launched the app was replaced by the first-run welcome screen
+- Setup and the pill didn't show destinations added outside the app until relaunch
+- The expanded pill covered setup's Continue button on small screens
 - Builds ran only on the macOS version and CPU architecture of the build machine
 - The pill's Shot and Vid buttons appeared gray instead of the accent color
 - Drop targets didn't fill the panel and didn't match the tiles with fewer than four destinations

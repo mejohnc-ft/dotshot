@@ -705,9 +705,23 @@ final class Gallery: ObservableObject {
     }
 }
 
+extension Notification.Name {
+    /// Posted when setup opens; the pill collapses so it doesn't cover setup's buttons.
+    static let dotshotSetupPresented = Notification.Name("dotshot.setupPresented")
+}
+
 final class PillState: ObservableObject {
     @Published var expanded = true
     private var collapseWork: DispatchWorkItem?
+    private var setupObserver: NSObjectProtocol?
+
+    init() {
+        setupObserver = NotificationCenter.default.addObserver(forName: .dotshotSetupPresented, object: nil, queue: .main) { [weak self] _ in
+            guard DEMO.pinnedState == nil else { return }
+            self?.collapseWork?.cancel()
+            withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) { self?.expanded = false }
+        }
+    }
     func hover(_ inside: Bool) {
         collapseWork?.cancel()
         if inside {
@@ -790,7 +804,7 @@ struct PillView: View {
             set: { over in withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { dropMode = over } }
         )) { providers, location in handleDrop(providers, at: location) }
         .onChange(of: state.expanded) { _, v in
-            if !dropMode { resizePill(v ? EXPANDED : COLLAPSED); if v { gallery.load() } }
+            if !dropMode { resizePill(v ? EXPANDED : COLLAPSED); if v { gallery.load(); DestinationStore.shared.reload() } }
         }
         .onChange(of: dropMode) { _, v in
             resizePill(v ? dropGridSize(destinations.items.count) : (state.expanded ? EXPANDED : COLLAPSED))
@@ -1502,7 +1516,7 @@ struct SetupView: View {
             VStack(alignment: .leading, spacing: 14) {
                 summaryRow("Screenshot", "⌃⌥⌘S", "camera.fill")
                 summaryRow("Screen recording", "⌃⌥⌘V", "video.fill")
-                summaryRow("Automation", "dotshot://image?dest=work", "link")
+                summaryRow("Automation", "dotshot://image?dest=\(currentDestination() ?? "work")", "link")
                 summaryRow("Settings", "Hover → gear", "gearshape.fill")
             }
             callout("One privacy reminder", "Captures may contain sensitive information. dotshot saves a local copy in ~/Shots and transfers only to destinations you configure.", "hand.raised.fill")
@@ -1619,7 +1633,7 @@ struct SetupView: View {
         switch loginStatus {
         case .enabled: "Launch at Login is enabled"
         case .requiresApproval: "Approval is required in System Settings"
-        case .notFound: "macOS could not find this app"
+        case .notFound: "Not registered yet"
         default: "Launch at Login is off"
         }
     }
@@ -1869,6 +1883,9 @@ final class SetupController {
 
     func present(initialStep: SetupStep = .welcome) {
         panel?.close()
+        // Show destinations added outside the app (by hand, or by an agent using the script's `add`).
+        DestinationStore.shared.reload()
+        NotificationCenter.default.post(name: .dotshotSetupPresented, object: nil)
         let size = NSSize(width: 868, height: 638)
         let setupPanel = SetupPanel(
             contentRect: NSRect(origin: .zero, size: size),
@@ -1948,12 +1965,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
            !UserDefaults.standard.bool(forKey: "dotshot.onboardingComplete")
             || DestinationStore.shared.items.isEmpty {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                // A dotshot:// link that launched the app (e.g. setup?step=destinations) takes precedence.
+                guard !self.openedByURL else { return }
                 SetupController.shared.present(initialStep: .welcome)
             }
         }
     }
 
+    private var openedByURL = false
+
     func application(_ application: NSApplication, open urls: [URL]) {
+        openedByURL = true
         urls.forEach(runCaptureURL)
     }
 }
