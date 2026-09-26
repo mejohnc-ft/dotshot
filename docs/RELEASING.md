@@ -85,12 +85,15 @@ Source: GitHub Actions**.
 ./scripts/docs/capture-media.sh     # raw window captures from an isolated demo build
 ./scripts/docs/compose-media.sh     # docs/images/* and site/images/*
 ./scripts/docs/make-demo.sh         # docs/images/demo.gif and demo.mp4 (README loop)
-./scripts/docs/make-intro.sh        # docs/images/intro.mp4, the 55 s intro (Node.js + ffmpeg)
+./scripts/docs/make-intro.sh        # docs/images/intro.mp4, the 55 s intro with soundtrack (Node.js + ffmpeg)
 ```
 
 `make-intro.sh --stills` renders a frame every two seconds for a quick review.
 The intro's scenes live in `scripts/docs/intro.html`; open it in a browser with
-`#t=<seconds>` to preview a single moment.
+`#t=<seconds>` to preview a single moment. Its sound cues sit next to the animations
+(`CUES` in `intro.html`); `scripts/docs/soundtrack.mjs` synthesizes the music and UI
+sounds from them, so the audio has no third-party license. `make-intro.sh --audio`
+re-mixes only the soundtrack in a few seconds.
 
 Your terminal app needs Screen Recording permission, and Google Chrome must be
 installed. These scripts never read your own dotshot settings.

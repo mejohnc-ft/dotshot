@@ -300,6 +300,22 @@
   // Scene windows [start, end]; neighbours cross-fade over 0.5 s.
   const SCENES = { s1: [0, 4.6], s2: [4.4, 14.6], s3: [14.4, 29.6], s4: [29.4, 37.6], s5: [37.4, 47.1], s6: [46.9, 51.6], s7: [51.4, 55.5] };
 
+  // Sound cues for soundtrack.mjs, in each scene's local time (the same clock as its animations below).
+  const CUES = {
+    s2: [[3.6, "pop"], [4.0, "pop"], ...[0, 1, 2, 3, 4].map((i) => [6.0 + i * 0.45, "tick"]), [8.6, "swish"], [8.9, "rise"]],
+    s3: [[2.3, "click"], [3.0, "press"], [4.05, "shutter"], [5.4, "blip"], [6.9, "sent"],
+         ...Array.from({ length: 10 }, (_, i) => [9.8 + i * 0.1, "key"]), [10.95, "key"],
+         ...[0, 1, 2, 3, 4].map((i) => [12.1 + i * 0.45, "tick"])],
+    s4: [[0.9, "click"], [2.3, "pop"], [3.3, "blip"], [3.9, "drop"], [4.2, "sent"]],
+    s5: [[0.2, "key"], [1.0, "pop"], [2.4, "click"], [2.8, "click"], [3.3, "press"], [4.1, "rec"], [5.0, "click"],
+         [5.9, "key"], [6.2, "recstop"], [6.6, "pop"], [7.55, "click"], [7.9, "sent"]],
+    s6: [0, 1, 2, 3].map((i) => [0.5 + i * 0.55, "tick"]),
+    s7: [[0.1, "bell"]],
+  };
+  window.SOUNDS = Object.entries(CUES).flatMap(([id, cues]) => cues.map(([t, kind]) => ({ t: +(SCENES[id][0] + t).toFixed(3), kind })))
+    .sort((a, b) => a.t - b.t);
+  window.SECTIONS = Object.fromEntries(Object.entries(SCENES).map(([id, [a]]) => [id, a]));
+
   function title(t) {
     T = t;
     const d = span(0.2, 0.9);

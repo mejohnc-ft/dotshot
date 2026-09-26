@@ -32,6 +32,10 @@ Fix the overflow in /Users/dev/inbound/network-settings-proxy-host-20260916-1014
 Files travel over the SSH or Tailscale connection you already have. On the
 destination, dotshot needs nothing but a folder the SSH account can write to.
 
+<p align="center">
+  <a href="https://mejohnc-ft.github.io/dotshot/#intro"><img src="docs/images/intro-thumb.png" width="720" alt="Watch the 55-second dotshot intro: a screenshot sent to a GPU box, a file dropped on a NAS, a recording sent to a Mac, and setup"></a>
+</p>
+
 ## Features
 
 - **Region screenshots** with offline, on-device OCR naming (`payment-form-test-failed-20260916-101300.png`)
@@ -43,9 +47,24 @@ destination, dotshot needs nothing but a folder the SSH account can write to.
 - **Guided setup** that tests each destination, diagnoses SSH problems, and walks you through a first capture
 - **Stays out of the way:** a 42 px camera nub in the corner of the screen you choose, excluded from your own screenshots
 
-<p align="center">
-  <img src="docs/images/pill.png" width="720" alt="The expanded dotshot pill with Shot and Vid buttons, accent colors, and recent captures, next to the collapsed camera nub">
-</p>
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/pill.png" alt="The collapsed camera nub and the expanded pill with Shot and Vid buttons, accent colors, and recent captures"></td>
+    <td width="50%"><img src="docs/images/drop-targets.png" alt="Four drop tiles named work, gpu, nas, and ci, with a file being dragged onto one"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Hover the nub</b> for Shot, Vid, destinations, and recent captures</td>
+    <td align="center"><b>Drag any file</b> onto the nub and drop it on a machine</td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/recording-picker.png" alt="Recording picker offering each display or a selected portion"></td>
+    <td width="50%"><img src="docs/images/recording-ready.png" alt="Recording ready panel with Send, Trim, and Resize"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Record</b> a whole display or any region</td>
+    <td align="center"><b>Send, trim, or shrink</b> the recording before it goes</td>
+  </tr>
+</table>
 
 ## Install
 
@@ -82,6 +101,21 @@ expanded pill.
 <p align="center">
   <img src="docs/images/setup-destinations.png" width="720" alt="dotshot setup: destinations with a name, SSH address, and folder, each with a Test button">
 </p>
+
+<table>
+  <tr>
+    <td width="33%"><img src="docs/images/setup-permissions.png" alt="Setup: allow Screen Recording"></td>
+    <td width="33%"><img src="docs/images/setup-connect.png" alt="Setup: enable SSH, prepare a key, and authorize it"></td>
+    <td width="33%"><img src="docs/images/setup-test.png" alt="Setup: take a first test capture"></td>
+  </tr>
+  <tr>
+    <td align="center">Permission</td>
+    <td align="center">SSH access</td>
+    <td align="center">First capture</td>
+  </tr>
+</table>
+
+Every screen, in order, is in the [walkthrough](docs/WALKTHROUGH.md).
 
 ## Use
 

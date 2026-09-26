@@ -1,6 +1,8 @@
 // Render a time-driven HTML scene to H.264 by stepping window.render(t) and piping frames into ffmpeg.
 // Used by make-intro.sh. Needs puppeteer-core (installed into build/media/node by that script) and ffmpeg.
 //
+//   Also writes <out>.cues.json when the scene defines window.SOUNDS.
+//
 //   node render-video.mjs <file://…scene.html> <out.mp4> [--fps 30] [--duration 50] [--width 1280] [--height 720] [--scale 1.5]
 import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
@@ -26,6 +28,13 @@ await page.setViewport({ width: opt.width, height: opt.height, deviceScaleFactor
 await page.goto(url, { waitUntil: "load" });
 await page.evaluate(() => document.fonts.ready);
 const duration = opt.duration || (await page.evaluate(() => window.DURATION));
+
+// Scenes may publish sound cues (window.SOUNDS) for soundtrack.mjs; write them next to the video.
+const cues = await page.evaluate(() => window.SOUNDS && { duration: window.DURATION, sections: window.SECTIONS, sounds: window.SOUNDS });
+if (cues) {
+  const { writeFileSync } = await import("node:fs");
+  writeFileSync(out.replace(/\.mp4$/, "") + ".cues.json", JSON.stringify(cues, null, 1));
+}
 const frames = Math.round(duration * opt.fps);
 
 const ffmpeg = spawn("ffmpeg", [
