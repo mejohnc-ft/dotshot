@@ -15,7 +15,7 @@ NODE_DIR="$ROOT/build/media/node"
 IMAGES="$ROOT/docs/images"
 CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 
-[ -f "$RAW/pill-expanded-gpu.png" ] && [ -f "$RAW/recording-ready.png" ] \
+[ -f "$RAW/pill-expanded-mi350x.png" ] && [ -f "$RAW/recording-ready.png" ] \
   || { echo "Run scripts/docs/capture-media.sh first." >&2; exit 1; }
 command -v ffmpeg >/dev/null || { echo "ffmpeg is required (brew install ffmpeg)." >&2; exit 1; }
 command -v node >/dev/null || { echo "Node.js is required (brew install node)." >&2; exit 1; }
@@ -32,7 +32,7 @@ soundtrack() {
   echo "==> soundtrack"
   node "$ROOT/scripts/docs/soundtrack.mjs" "$RENDER/intro.cues.json" "$RENDER/music.wav" "$RENDER/sfx.wav"
   ffmpeg -loglevel error -y -i "$RENDER/intro.mp4" -i "$RENDER/music.wav" -i "$RENDER/sfx.wav" -filter_complex \
-    "[1:a]highpass=f=45,equalizer=f=110:t=q:w=1:g=-4,equalizer=f=2800:t=q:w=1.4:g=3,aecho=0.8:0.6:90|180|310:0.28|0.18|0.1,lowpass=f=11000[m];[2:a]aecho=0.9:0.5:40|75:0.16|0.08,volume=2.2[s];[m][s]amix=inputs=2:normalize=0,loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000,alimiter=limit=0.84:level=false[a]" \
+    "[1:a]highpass=f=45,equalizer=f=110:t=q:w=1:g=-4,equalizer=f=2800:t=q:w=1.4:g=3,aecho=0.8:0.6:90|180|310:0.28|0.18|0.1,lowpass=f=11000[m];[2:a]aecho=0.9:0.5:40|75:0.16|0.08,volume=2.2[s];[m][s]amix=inputs=2:normalize=0,loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000,alimiter=limit=0.75:level=false[a]" \
     -map 0:v -map "[a]" -c:v copy -c:a aac -b:a 192k -shortest -movflags +faststart "$IMAGES/intro.mp4"
 }
 
@@ -48,7 +48,7 @@ rm -rf "$WORK"
 mkdir -p "$WORK/raw" "$RENDER"
 cp "$RAW"/*.png "$WORK/raw/"
 cp "$ROOT/scripts/docs/intro.html" "$WORK/intro.html"
-for view in settings login; do
+for view in settings login training rocprof; do
   "$CHROME" --headless=new --disable-gpu --hide-scrollbars --force-device-scale-factor=2 --window-size=1280,800 \
     --screenshot="$WORK/raw/sample-$view.png" "file://$ROOT/scripts/docs/sample-shots.html#$view" >/dev/null 2>&1
 done
@@ -68,7 +68,7 @@ echo "==> rendering"
 node "$ROOT/scripts/docs/render-video.mjs" "file://$WORK/intro.html" "$RENDER/intro.mp4" --fps 30 --scale 1.5
 soundtrack
 # Poster: the moment the agent reads the delivered screenshot.
-ffmpeg -loglevel error -y -ss 28.2 -i "$IMAGES/intro.mp4" -frames:v 1 -vf "scale=1280:-1" "$IMAGES/intro-poster.png"
+ffmpeg -loglevel error -y -ss 29.9 -i "$IMAGES/intro.mp4" -frames:v 1 -vf "scale=1280:-1" "$IMAGES/intro-poster.png"
 # README thumbnail: GitHub can't play repository videos inline, so the README links this image to the site.
 cat > "$WORK/play.html" <<HTML
 <!doctype html><meta charset="utf-8"><style>
@@ -79,7 +79,7 @@ img{position:absolute;inset:0;width:100%}
 .p{width:128px;height:128px;border-radius:50%;background:#b58900;display:grid;place-items:center;box-shadow:0 0 0 12px rgba(181,137,0,.28),0 20px 50px rgba(0,0,0,.5)}
 .p i{margin-left:10px;border-left:44px solid #1b1500;border-top:27px solid transparent;border-bottom:27px solid transparent}
 small{font-weight:500;font-size:19px;color:#c9c3ad}
-</style><img src="file://$IMAGES/intro-poster.png"><div class="d"></div><div class="c"><div class="p"><i></i></div>Watch the 55-second intro<small>Screenshot · any file · recording · setup</small></div>
+</style><img src="file://$IMAGES/intro-poster.png"><div class="d"></div><div class="c"><div class="p"><i></i></div>Watch the 80-second intro<small>DGX Spark · MI350X · Mac Studio · NAS · CI</small></div>
 HTML
 "$CHROME" --headless=new --disable-gpu --hide-scrollbars --allow-file-access-from-files --force-device-scale-factor=1 --window-size=1280,720 \
   --screenshot="$IMAGES/intro-thumb.png" "file://$WORK/play.html" >/dev/null 2>&1

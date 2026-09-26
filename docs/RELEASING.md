@@ -85,7 +85,7 @@ Source: GitHub Actions**.
 ./scripts/docs/capture-media.sh     # raw window captures from an isolated demo build
 ./scripts/docs/compose-media.sh     # docs/images/* and site/images/*
 ./scripts/docs/make-demo.sh         # docs/images/demo.gif and demo.mp4 (README loop)
-./scripts/docs/make-intro.sh        # docs/images/intro.mp4, the 55 s intro with soundtrack (Node.js + ffmpeg)
+./scripts/docs/make-intro.sh        # docs/images/intro.mp4, the 80 s intro with soundtrack (Node.js + ffmpeg)
 ```
 
 `make-intro.sh --stills` renders a frame every two seconds for a quick review.

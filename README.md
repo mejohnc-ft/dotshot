@@ -17,7 +17,7 @@ There's no save dialog, no file naming, no upload, and no hunting for the file
 on the other machine. There's also no account, cloud inbox, receiving service,
 telemetry, or API key.
 
-[**Download for macOS**](https://github.com/mejohnc-ft/dotshot/releases/latest) · [**Watch the 55-second intro**](https://mejohnc-ft.github.io/dotshot/#intro) · [Walkthrough](docs/WALKTHROUGH.md) · [Install guide](docs/INSTALL.md) · [SSH setup](docs/SSH_SETUP.md) · [Troubleshooting](docs/TROUBLESHOOTING.md)
+[**Download for macOS**](https://github.com/mejohnc-ft/dotshot/releases/latest) · [**Watch the 80-second intro**](https://mejohnc-ft.github.io/dotshot/#intro) · [Walkthrough](docs/WALKTHROUGH.md) · [Install guide](docs/INSTALL.md) · [SSH setup](docs/SSH_SETUP.md) · [Troubleshooting](docs/TROUBLESHOOTING.md)
 
 ## Why
 
@@ -33,7 +33,7 @@ Files travel over the SSH or Tailscale connection you already have. On the
 destination, dotshot needs nothing but a folder the SSH account can write to.
 
 <p align="center">
-  <a href="https://mejohnc-ft.github.io/dotshot/#intro"><img src="docs/images/intro-thumb.png" width="720" alt="Watch the 55-second dotshot intro: a screenshot sent to a GPU box, a file dropped on a NAS, a recording sent to a Mac, and setup"></a>
+  <a href="https://mejohnc-ft.github.io/dotshot/#intro"><img src="docs/images/intro-thumb.png" width="720" alt="Watch the 80-second dotshot intro: screenshots to a DGX Spark cluster and an MI350X box, a recording to a Mac Studio, eval results to a NAS, and setup"></a>
 </p>
 
 ## Features

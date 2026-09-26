@@ -22,7 +22,7 @@ echo "==> demo build"
 codesign --force --sign - --identifier "$DEMO_ID" "$APP" 2>/dev/null
 swiftc -O "$ROOT/scripts/docs/window-ids.swift" -o "$WORK/window-ids"
 
-printf '# name\tssh-host-or-alias\tremote-folder\nwork\tdev@mac-studio.local\t/Users/dev/inbound\ngpu\tdev@gpu-box\t/home/dev/inbound\nnas\tadmin@nas\t/srv/inbound\nci\tbuild@ci-runner\t/home/build/inbound\n' \
+printf '# name\tssh-host-or-alias\tremote-folder\nspark\tdev@spark-cluster\t/home/dev/inbound\nmi350x\tdev@mi350x-hotaisle\t/home/dev/inbound\nwork\tdev@mac-studio.local\t/Users/dev/inbound\nnas\tadmin@nas\t/srv/inbound\nci\tbuild@ci-runner\t/home/build/inbound\n' \
   > "$WORK/config/destinations.tsv"
 defaults delete "$DEMO_ID" >/dev/null 2>&1 || true
 defaults write "$DEMO_ID" dotshot.onboardingComplete -bool true
@@ -82,9 +82,11 @@ for step in welcome permissions connect destinations test login appearance "done
   shoot "setup-$step" 800 DOTSHOT_DEMO_STATE=collapsed DOTSHOT_DEMO_SETUP="$step"
 done
 
-# The intro video switches destinations, so it needs the pill pointed at another machine too.
-defaults write "$DEMO_ID" dotshot.dest gpu
-shoot pill-expanded-gpu 400 DOTSHOT_DEMO_STATE=expanded
+# The intro video switches destinations, so it needs the pill pointed at other machines too.
+for dest in spark mi350x; do
+  defaults write "$DEMO_ID" dotshot.dest "$dest"
+  shoot "pill-expanded-$dest" 400 DOTSHOT_DEMO_STATE=expanded
+done
 defaults write "$DEMO_ID" dotshot.dest work
 pkill -f "$APP/Contents/MacOS/dotshot" 2>/dev/null || true
 

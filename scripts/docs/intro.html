@@ -2,8 +2,9 @@
 <meta charset="utf-8">
 <title>dotshot intro</title>
 <!--
-  The ~55 s intro video. render-video.mjs calls window.render(t) for every frame; open with #t=<seconds> to preview one.
-  dotshot UI comes from real window captures in ./raw/ (capture-media.sh); desktops, notifications, and terminals are staged.
+  The ~80 s intro video. render-video.mjs calls window.render(t) for every frame; open with #t=<seconds> to preview one.
+  dotshot UI comes from real window captures in ./raw/ (capture-media.sh); desktops, menus, notifications, and terminals are staged.
+  The two screenshot scenes are generated from SHOT_SCENES; sound cues (CUES) sit next to the animations they belong to.
 -->
 <style>
   * { box-sizing: border-box; }
@@ -37,6 +38,7 @@
   .node b { display: block; font-size: 17px; }
   .node span { font-size: 13px; color: #93a1a1; }
   .node .tag { margin-left: auto; font: 600 11px ui-monospace, Menlo, monospace; color: #1b1500; background: #e0b43c; padding: 3px 7px; border-radius: 6px; }
+  .node.wide { width: 400px; }
   .me { left: 150px; top: 300px; width: 280px; padding: 20px; box-shadow: 0 0 0 2px #b58900, 0 18px 40px rgba(0, 0, 0, 0.4); }
   .links { position: absolute; inset: 0; }
   .thumb { position: absolute; width: 92px; height: 58px; border-radius: 6px; overflow: hidden; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5), 0 0 0 2px #fdf6e3; background: #fff; }
@@ -122,6 +124,29 @@
   .points li::before { content: "✓"; position: absolute; left: 0; top: 0; color: #e0b43c; font-weight: 800; }
   .points li span { display: block; font-size: 15.5px; color: #93a1a1; margin-top: 4px; }
   .setup-title { position: absolute; left: 70px; top: 58px; font-size: 38px; font-weight: 700; letter-spacing: -0.025em; }
+
+  /* destination menu (staged; the app uses a plain native menu of destination names) */
+  .dmenu { position: absolute; left: 632px; top: 364px; width: 128px; padding: 5px; border-radius: 8px; z-index: 6;
+    background: rgba(44, 44, 46, 0.96); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), 0 0 0 0.5px rgba(255, 255, 255, 0.18); font-size: 13px; color: #f2f2f2; }
+  .dmenu div { height: 22px; line-height: 22px; padding: 0 10px; border-radius: 5px; }
+  .dmenu div.hi { background: #0a64d6; color: #fff; }
+  .codex .gold { color: #7ee787; }
+
+  /* fleet montage */
+  .fleet-title { position: absolute; left: 0; right: 0; top: 60px; text-align: center; font-size: 38px; font-weight: 700; letter-spacing: -0.025em; }
+  .cards { position: absolute; left: 70px; right: 70px; top: 176px; display: grid; grid-template-columns: repeat(6, 1fr); gap: 18px; }
+  .card { grid-column: span 2; padding: 18px 20px 16px; border-radius: 16px; background: rgba(7, 54, 66, 0.92); box-shadow: 0 0 0 1px rgba(238, 232, 213, 0.14), 0 16px 36px rgba(0, 0, 0, 0.4); opacity: 0; }
+  .card:nth-child(4) { grid-column: 2 / span 2; } .card:nth-child(5) { grid-column: 4 / span 2; }
+  .card .row { display: flex; align-items: center; gap: 10px; }
+  .card b { font-size: 21px; letter-spacing: -0.01em; }
+  .card .tag { margin-left: auto; font: 600 11px ui-monospace, Menlo, monospace; color: #1b1500; background: #e0b43c; padding: 3px 7px; border-radius: 6px; }
+  .card .tag.plain { background: rgba(238, 232, 213, 0.14); color: #c9c3ad; }
+  .card .hw { color: #93a1a1; font-size: 14px; margin: 4px 0 14px; }
+  .card .got { font: 12px/1.5 ui-monospace, "SF Mono", Menlo, monospace; color: #c9d1d9; background: #0b1419; border-radius: 8px; padding: 8px 10px; min-height: 52px; word-break: break-all; }
+  .card .got .ok { color: #859900; font-weight: 700; }
+  .card .got .ms { color: #657b83; }
+  .fleet-sub { position: absolute; left: 0; right: 0; top: 560px; text-align: center; font-size: 19px; color: #93a1a1; }
+  .fleet-sub kbd { font: inherit; color: #e0b43c; }
 </style>
 
 <!-- 1 · title -->
@@ -130,39 +155,41 @@
   <div class="center">
     <div class="mark"><span class="dot" id="s1dot"></span><b id="s1word">dotshot</b></div>
     <div class="tagline" id="s1tag">Capture here. <span class="gold">Let your agents use it there.</span></div>
-    <div class="sub" id="s1sub">For people who run coding agents on more than one machine.</div>
+    <div class="sub" id="s1sub">For people who run coding agents across a fleet of machines.</div>
   </div>
 </section>
 
-<!-- 2 · the problem -->
+<!-- 2 · the fleet and the problem -->
 <section class="scene" id="s2">
   <div class="bg"></div><div class="grid"></div>
   <div class="headline" id="s2h1">Your agents work <span class="gold">over there.</span></div>
   <div id="s2map">
     <svg class="links" viewBox="0 0 1280 720" id="s2links">
       <g fill="none" stroke="#2aa198" stroke-width="2" stroke-dasharray="7 7">
-        <path d="M430 355 C 560 355, 600 190, 760 190"/>
-        <path d="M430 360 C 560 360, 600 300, 760 300"/>
-        <path d="M430 365 C 560 365, 600 410, 760 410"/>
-        <path d="M430 370 C 560 370, 600 520, 760 520"/>
+        <path d="M430 350 C 560 350, 600 160, 740 160"/>
+        <path d="M430 355 C 560 355, 600 262, 740 262"/>
+        <path d="M430 360 C 560 360, 600 364, 740 364"/>
+        <path d="M430 365 C 560 365, 600 466, 740 466"/>
+        <path d="M430 370 C 560 370, 600 568, 740 568"/>
       </g>
     </svg>
-    <div class="node me">
+    <div class="node me" style="top:318px">
       <svg width="44" height="34" viewBox="0 0 44 34"><rect x="5" y="2" width="34" height="23" rx="3" fill="none" stroke="#e0b43c" stroke-width="2.4"/><path d="M1 30 H43" stroke="#e0b43c" stroke-width="3" stroke-linecap="round"/></svg>
       <div><b>This Mac</b><span>where you're looking</span></div>
     </div>
-    <div class="node" style="left:760px;top:160px"><svg width="30" height="26" viewBox="0 0 30 26"><rect x="2" y="2" width="26" height="17" rx="3" fill="none" stroke="#93a1a1" stroke-width="2"/><path d="M10 24 H20" stroke="#93a1a1" stroke-width="2.4"/></svg><div><b>work</b><span>mac-studio</span></div><em class="tag">claude</em></div>
-    <div class="node" style="left:760px;top:270px"><svg width="30" height="26" viewBox="0 0 30 26"><rect x="3" y="2" width="24" height="22" rx="3" fill="none" stroke="#93a1a1" stroke-width="2"/><path d="M8 8 H22 M8 13 H22 M8 18 H22" stroke="#93a1a1" stroke-width="2"/></svg><div><b>gpu</b><span>gpu-box</span></div><em class="tag">claude</em></div>
-    <div class="node" style="left:760px;top:380px"><svg width="30" height="26" viewBox="0 0 30 26"><rect x="3" y="3" width="24" height="9" rx="2" fill="none" stroke="#93a1a1" stroke-width="2"/><rect x="3" y="14" width="24" height="9" rx="2" fill="none" stroke="#93a1a1" stroke-width="2"/></svg><div><b>nas</b><span>storage</span></div></div>
-    <div class="node" style="left:760px;top:490px"><svg width="30" height="26" viewBox="0 0 30 26"><circle cx="15" cy="13" r="10" fill="none" stroke="#93a1a1" stroke-width="2"/><path d="M15 7 V13 L19 16" stroke="#93a1a1" stroke-width="2" fill="none"/></svg><div><b>ci</b><span>ci-runner</span></div><em class="tag">codex</em></div>
-    <div class="thumb" id="s2thumb"><img src="raw/sample-settings.png" alt=""></div>
+    <div class="node wide" style="left:740px;top:128px"><div><b>spark</b><span>DGX Spark cluster · 2× GB10 · CUDA</span></div><em class="tag">claude</em></div>
+    <div class="node wide" style="left:740px;top:230px"><div><b>mi350x</b><span>MI350X dev box · hot aisle · ROCm</span></div><em class="tag">codex</em></div>
+    <div class="node wide" style="left:740px;top:332px"><div><b>work</b><span>Mac Studio · app development</span></div><em class="tag">claude</em></div>
+    <div class="node wide" style="left:740px;top:434px"><div><b>nas</b><span>franklin · ZFS storage · archives</span></div></div>
+    <div class="node wide" style="left:740px;top:536px"><div><b>ci</b><span>CI runner · failing builds</span></div><em class="tag">codex</em></div>
+    <div class="thumb" id="s2thumb"><img src="raw/sample-training.png" alt=""></div>
     <div class="qmark" id="s2q">?</div>
   </div>
-  <div class="headline" id="s2h2" style="top:64px">The screenshot lands <span class="gold">over here.</span></div>
+  <div class="headline" id="s2h2">The screenshot lands <span class="gold">over here.</span></div>
   <div class="chores" id="s2chores">
     <div><i>1</i>⇧⌘4, then find it on the Desktop</div>
-    <div><i>2</i>Rename "Screenshot 2026-09-26 at 10.14.03"</div>
-    <div><i>3</i>scp it to the right machine</div>
+    <div><i>2</i>Rename "Screenshot 2026-09-26 at 10.22.03"</div>
+    <div><i>3</i>scp it to the right one of five machines</div>
     <div><i>4</i>Work out its absolute path over there</div>
     <div><i>5</i>Paste that path into the agent</div>
   </div>
@@ -170,68 +197,15 @@
   <div class="answer" id="s2ans">dotshot does all five with one shortcut: <kbd>⌃⌥⌘S</kbd></div>
 </section>
 
-<!-- 3 · screenshot to gpu -->
-<section class="scene" id="s3">
-  <div class="stage">
-    <div class="bg"></div>
-    <div class="menubar"><b>Safari</b><span>File</span><span>Edit</span><span>View</span><span class="clock">Sat 10:14</span></div>
-    <div class="window light browser"><div class="bar"><i></i><i></i><i></i><span>localhost:5173/settings/network</span></div><img src="raw/sample-settings.png" alt=""></div>
-    <div class="window terminal" id="s3term">
-      <div class="bar"><i></i><i></i><i></i><b>ssh gpu-box — claude</b></div>
-      <div class="term">
-        <div class="dim">dev@gpu-box:~/projects/console</div>
-        <div><span class="gold">&gt;</span> <span id="s3typed"></span><span class="path" id="s3pasted"></span><span class="caret" id="s3caret"></span></div>
-        <br>
-        <div id="s3l1"><span class="cyan">●</span> Read network-settings-proxy-host-20260926-101400.png</div>
-        <div id="s3l2"><span class="cyan">●</span> The proxy host value escapes its row: the field uses</div>
-        <div id="s3l3">&nbsp;&nbsp;<span class="green">white-space: nowrap</span> inside a fixed 260px column.</div>
-        <div id="s3l4"><span class="cyan">●</span> Update <span class="gold">src/settings/NetworkRow.tsx</span></div>
-        <div id="s3l5">&nbsp;&nbsp;<span class="green">+ className="min-w-0 truncate" title={host}</span></div>
-      </div>
-    </div>
-    <img class="nub" id="s3nub" src="raw/pill-collapsed.png" alt="">
-    <img class="pill" id="s3pill" src="raw/pill-expanded-gpu.png" alt="">
-    <div class="selection" id="s3sel"><em id="s3dims"></em></div>
-    <div class="flash" id="s3flash"></div>
-    <div class="ocr" id="s3ocr" style="left:58px;top:262px"><small>ON-DEVICE OCR</small><span id="s3ocrtext"></span></div>
-    <div class="notification" id="s3note"><img src="raw/app-icon.png" alt=""><div><b>Sent to gpu</b><span>/home/dev/inbound/network-settings-proxy-host-20260926-101400.png (path copied)</span></div><small>now</small></div>
-    <div class="keycap" id="s3key" style="top:50%">⌘V</div>
-    <svg class="cursor" id="s3cursor" viewBox="0 0 18 26"><path d="M1 1 L1 20 L6 15.5 L9.5 23.5 L13 22 L9.5 14 L16 14 Z" fill="#000" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg>
-    <svg class="crosshair" id="s3cross" viewBox="0 0 30 30"><path d="M15 2 V28 M2 15 H28" stroke="#fff" stroke-width="2.4"/><path d="M15 2 V28 M2 15 H28" stroke="#000" stroke-width="1"/></svg>
-    <div class="chapter">SCREENSHOT</div>
-    <div class="caption" id="s3cap"></div>
-  </div>
-</section>
-
-<!-- 4 · drag and drop -->
-<section class="scene" id="s4">
-  <div class="stage">
-    <div class="bg"></div>
-    <div class="menubar"><b>Finder</b><span>File</span><span>Edit</span><span>View</span><span>Go</span><span class="clock">Sat 10:16</span></div>
-    <div class="window light finder">
-      <div class="bar"><i></i><i></i><i></i><b>Downloads</b></div>
-      <div class="frow head"><span>Name</span><span>Size</span></div>
-      <div class="frow"><span class="ficon"></span><span>build-output.log</span><span>84 KB</span></div>
-      <div class="frow" id="s4row"><span class="ficon"></span><span>crash-report.ips</span><span>212 KB</span></div>
-      <div class="frow"><span class="ficon"></span><span>schema.sql</span><span>9 KB</span></div>
-      <div class="frow"><span class="ficon"></span><span>fixtures.json</span><span>31 KB</span></div>
-    </div>
-    <img class="nub" id="s4nub" src="raw/pill-collapsed.png" alt="">
-    <img class="tiles" id="s4tiles" src="raw/pill-drop.png" alt="">
-    <div class="tilehi" id="s4hi" style="left:632px;top:415px;width:147px;height:99px"></div>
-    <div class="ghost" id="s4ghost"><span class="ficon"></span>crash-report.ips</div>
-    <div class="notification" id="s4note"><img src="raw/app-icon.png" alt=""><div><b>Sent to nas</b><span>/srv/inbound/crash-report.ips (path copied)</span></div><small>now</small></div>
-    <svg class="cursor" id="s4cursor" viewBox="0 0 18 26"><path d="M1 1 L1 20 L6 15.5 L9.5 23.5 L13 22 L9.5 14 L16 14 Z" fill="#000" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg>
-    <div class="chapter">ANY FILE</div>
-    <div class="caption" id="s4cap"></div>
-  </div>
-</section>
+<!-- 3, 4 · screenshot scenes (built from SHOT_SCENES below) -->
+<section class="scene" id="s3"></section>
+<section class="scene" id="s4"></section>
 
 <!-- 5 · recording -->
 <section class="scene" id="s5">
   <div class="stage">
     <div class="bg"></div>
-    <div class="menubar"><b>Safari</b><span>File</span><span>Edit</span><span>View</span><span class="clock" id="s5clock">Sat 10:19</span></div>
+    <div class="menubar"><b>Safari</b><span>File</span><span>Edit</span><span>View</span><span class="clock" id="s5clock">Sat 10:31</span></div>
     <div class="window light browser" style="width:600px;height:420px"><div class="bar"><i></i><i></i><i></i><span>localhost:5173/login</span></div><img src="raw/sample-login.png" alt="" style="width:600px"></div>
     <div class="recframe" id="s5frame"></div>
     <img class="nub" src="raw/pill-collapsed.png" alt="">
@@ -240,21 +214,53 @@
     <div class="overlay" id="s5pick" style="left:591px;top:194px;width:196px;height:172px;box-shadow:0 0 0 2px #c9a227 inset;background:rgba(181,137,0,0.14)"></div>
     <div class="selection" id="s5sel"><em id="s5dims"></em></div>
     <img class="ready" id="s5ready" src="raw/recording-ready.png" alt="">
-    <div class="notification" id="s5note"><img src="raw/app-icon.png" alt=""><div><b>Sent to work</b><span>/Users/dev/inbound/sign-in-invalid-credentials-20260926-101900.mov (path copied)</span></div><small>now</small></div>
+    <div class="notification" id="s5note"><img src="raw/app-icon.png" alt=""><div><b>Sent to work</b><span>/Users/dev/inbound/sign-in-invalid-credentials-20260926-103100.mov (path copied)</span></div><small>now</small></div>
     <div class="keycap" id="s5key"></div>
     <svg class="cursor" id="s5cursor" viewBox="0 0 18 26"><path d="M1 1 L1 20 L6 15.5 L9.5 23.5 L13 22 L9.5 14 L16 14 Z" fill="#000" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg>
     <svg class="crosshair" id="s5cross" viewBox="0 0 30 30"><path d="M15 2 V28 M2 15 H28" stroke="#fff" stroke-width="2.4"/><path d="M15 2 V28 M2 15 H28" stroke="#000" stroke-width="1"/></svg>
-    <div class="chapter">RECORDING</div>
+    <div class="chapter">RECORDING → WORK</div>
     <div class="caption" id="s5cap"></div>
   </div>
 </section>
 
-<!-- 6 · setup and guarantees -->
+<!-- 6 · drag and drop -->
 <section class="scene" id="s6">
+  <div class="stage">
+    <div class="bg"></div>
+    <div class="menubar"><b>Finder</b><span>File</span><span>Edit</span><span>View</span><span>Go</span><span class="clock">Sat 10:34</span></div>
+    <div class="window light finder">
+      <div class="bar"><i></i><i></i><i></i><b>eval-run-42</b></div>
+      <div class="frow head"><span>Name</span><span>Size</span></div>
+      <div class="frow" id="s6row"><span class="ficon"></span><span>eval-results-run-42.parquet</span><span>48 MB</span></div>
+      <div class="frow"><span class="ficon"></span><span>vllm-server.log</span><span>3.1 MB</span></div>
+      <div class="frow"><span class="ficon"></span><span>generations-sample.jsonl</span><span>920 KB</span></div>
+      <div class="frow"><span class="ficon"></span><span>config.yaml</span><span>4 KB</span></div>
+    </div>
+    <img class="nub" id="s6nub" src="raw/pill-collapsed.png" alt="">
+    <img class="tiles" id="s6tiles" src="raw/pill-drop.png" alt="">
+    <div class="tilehi" id="s6hi" style="left:786px;top:416px;width:146px;height:98px"></div>
+    <div class="ghost" id="s6ghost"><span class="ficon"></span>eval-results-run-42.parquet</div>
+    <div class="notification" id="s6note"><img src="raw/app-icon.png" alt=""><div><b>Sent to nas</b><span>/srv/inbound/eval-results-run-42.parquet (path copied)</span></div><small>now</small></div>
+    <svg class="cursor" id="s6cursor" viewBox="0 0 18 26"><path d="M1 1 L1 20 L6 15.5 L9.5 23.5 L13 22 L9.5 14 L16 14 Z" fill="#000" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg>
+    <div class="chapter">ANY FILE → NAS</div>
+    <div class="caption" id="s6cap"></div>
+  </div>
+</section>
+
+<!-- 7 · fleet montage -->
+<section class="scene" id="s7">
+  <div class="bg"></div><div class="grid"></div>
+  <div class="fleet-title">One shortcut. <span class="gold">Every machine.</span></div>
+  <div class="cards" id="s7cards"></div>
+  <div class="fleet-sub" id="s7sub">Each path lands on your clipboard, ready for the agent on that machine.<br>Switch with the pill, a drop tile, or <kbd>dotshot://image?dest=mi350x</kbd>.</div>
+</section>
+
+<!-- 8 · setup and guarantees -->
+<section class="scene" id="s8">
   <div class="bg"></div><div class="grid"></div>
   <div class="setup-title">Set it up once. <span class="gold">Every machine, one shortcut.</span></div>
-  <img class="setupimg" id="s6img" src="raw/setup-destinations.png" alt="">
-  <ul class="points" id="s6points">
+  <img class="setupimg" id="s8img" src="raw/setup-destinations.png" alt="">
+  <ul class="points" id="s8points">
     <li>Setup tests every machine<span>Host, key, and folder checked separately, with a fix for each failure.</span></li>
     <li>Anything SSH can reach<span><code class="mono">user@host</code>, Tailscale names, <code class="mono">~/.ssh/config</code> aliases. Mac or Linux.</span></li>
     <li>Scriptable<span><code class="mono">dotshot://</code> URLs for Shortcuts, Raycast, and scripts.</span></li>
@@ -262,19 +268,18 @@
   </ul>
 </section>
 
-<!-- 7 · end card -->
-<section class="scene" id="s7">
+<!-- 9 · end card -->
+<section class="scene" id="s9">
   <div class="bg"></div><div class="grid"></div>
   <div class="center">
     <div class="mark"><span class="dot"></span><b>dotshot</b></div>
     <div class="tagline">Capture here. <span class="gold">Let your agents use it there.</span></div>
-    <div class="sub">Free and open source · macOS 14+ · Apple silicon and Intel</div>
+    <div class="sub">Free and open source · Notarized by Apple · macOS 14+ · Apple silicon and Intel</div>
     <div class="urlpill">github.com/mejohnc-ft/dotshot</div>
   </div>
 </section>
 
 <script>
-  window.DURATION = 55;
   const $ = (id) => document.getElementById(id);
   const clamp = (x) => Math.max(0, Math.min(1, x));
   const ease = (x) => { x = clamp(x); return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
@@ -291,35 +296,183 @@
     }
     return points[points.length - 1].slice(1);
   };
-  const show = (id, on) => { $(id).style.display = on ? "" : "none"; };
-  const place = (id, x, y) => { $(id).style.left = x + "px"; $(id).style.top = y + "px"; };
-  const slideIn = (id, a, b) => { const k = win(a, b); $(id).style.opacity = k; $(id).style.transform = `translateX(${lerp(380, 0, k)}px)`; };
-  const pop = (id, a, b, origin) => { const k = win(a, b, 0.3); $(id).style.opacity = k; $(id).style.transform = `scale(${lerp(0.9, 1, k)})`; if (origin) $(id).style.transformOrigin = origin; };
+  const show = (el, on) => { el.style.display = on ? "" : "none"; };
+  const place = (el, x, y) => { el.style.left = x + "px"; el.style.top = y + "px"; };
+  const slideIn = (el, a, b) => { const k = win(a, b); el.style.opacity = k; el.style.transform = `translateX(${lerp(380, 0, k)}px)`; };
+  const pop = (el, a, b) => { const k = win(a, b, 0.3); el.style.opacity = k; el.style.transform = `scale(${lerp(0.9, 1, k)})`; };
   const typed = (text, a, b) => text.slice(0, Math.floor(clamp((T - a) / (b - a)) * text.length));
+  const CURSOR = '<path d="M1 1 L1 20 L6 15.5 L9.5 23.5 L13 22 L9.5 14 L16 14 Z" fill="#000" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/>';
+  const CROSS = '<path d="M15 2 V28 M2 15 H28" stroke="#fff" stroke-width="2.4"/><path d="M15 2 V28 M2 15 H28" stroke="#000" stroke-width="1"/>';
 
-  // Scene windows [start, end]; neighbours cross-fade over 0.5 s.
-  const SCENES = { s1: [0, 4.6], s2: [4.4, 14.6], s3: [14.4, 29.6], s4: [29.4, 37.6], s5: [37.4, 47.1], s6: [46.9, 51.6], s7: [51.4, 55.5] };
-
-  // Sound cues for soundtrack.mjs, in each scene's local time (the same clock as its animations below).
-  const CUES = {
-    s2: [[3.6, "pop"], [4.0, "pop"], ...[0, 1, 2, 3, 4].map((i) => [6.0 + i * 0.45, "tick"]), [8.6, "swish"], [8.9, "rise"]],
-    s3: [[2.3, "click"], [3.0, "press"], [4.05, "shutter"], [5.4, "blip"], [6.9, "sent"],
-         ...Array.from({ length: 10 }, (_, i) => [9.8 + i * 0.1, "key"]), [10.95, "key"],
-         ...[0, 1, 2, 3, 4].map((i) => [12.1 + i * 0.45, "tick"])],
-    s4: [[0.9, "click"], [2.3, "pop"], [3.3, "blip"], [3.9, "drop"], [4.2, "sent"]],
-    s5: [[0.2, "key"], [1.0, "pop"], [2.4, "click"], [2.8, "click"], [3.3, "press"], [4.1, "rec"], [5.0, "click"],
-         [5.9, "key"], [6.2, "recstop"], [6.6, "pop"], [7.55, "click"], [7.9, "sent"]],
-    s6: [0, 1, 2, 3].map((i) => [0.5 + i * 0.55, "tick"]),
-    s7: [[0.1, "bell"]],
+  // ---- screenshot scenes -------------------------------------------------------------------------
+  // Base timeline (seconds, scene-local): hover 1.1 · Shot 2.3 · drag 2.75–4.05 · OCR 4.3–7.0 · Sent 6.9 · agent 9.3+.
+  // A destination switch inserts SWITCH seconds after the hover: click the name, pick from the menu.
+  const SWITCH = 1.6;
+  const DESTS = ["spark", "mi350x", "work", "nas", "ci"];
+  const SHOT_SCENES = {
+    s3: {
+      chapter: "SCREENSHOT → SPARK", app: "Safari", clock: "Sat 10:22", url: "wandb.local/llama-8b-sft/runs/42", img: "raw/sample-training.png",
+      pill: "raw/pill-expanded-spark.png", sel: [62, 98, 592, 418],
+      ocr: "train/loss · llama-8b-sft · run-42 · warmup ends…", name: "train-loss-llama-8b-sft-run-42-20260926-102200.png",
+      dest: "spark", dir: "/home/dev/inbound", title: "ssh spark-cluster — claude", cwd: "dev@spark-cluster:~/llama-sft",
+      ask: "Why did loss spike at 4k? ", agent: "claude",
+      lines: [
+        "Read train-loss-llama-8b-sft-run-42-20260926-102200.png",
+        "The spike starts where warmup ends: lr jumps 2e-5 → 1e-4",
+        "&nbsp;&nbsp;in one step, and grad norm climbs to 14.",
+        "Update <span class=\"gold\">configs/sft.yaml</span>",
+        "&nbsp;&nbsp;<span class=\"green\">+ lr_scheduler: cosine · warmup_ratio: 0.03 · max_grad_norm: 1.0</span>",
+      ],
+      captions: [[2.75, "Hover the nub and click <kbd>Shot</kbd>, or press <kbd>⌃⌥⌘S</kbd>"], [4.3, "Drag over the loss curve"],
+        [6.9, "Offline OCR names the file after what's on screen"], [9.3, "Sent over SSH to <kbd>spark</kbd>. The remote path is on your clipboard."],
+        [99, "Claude on the DGX Spark cluster reads it"]],
+    },
+    s4: {
+      chapter: "SCREENSHOT → MI350X", app: "Safari", clock: "Sat 10:27", url: "localhost:8050/rocprof/decode-b64", img: "raw/sample-rocprof.png",
+      pill: "raw/pill-expanded-spark.png", switchTo: { pill: "raw/pill-expanded-mi350x.png", index: 1 }, sel: [62, 92, 592, 262],
+      ocr: "rocprofv3 · kernel summary · gemm_bf16_tile64 38.1%…", name: "rocprofv3-kernel-summary-gemm-bf16-tile64-20260926-102700.png",
+      dest: "mi350x", dir: "/home/dev/inbound", title: "ssh mi350x-hotaisle — codex", cwd: "dev@mi350x-hotaisle:~/kernels",
+      ask: "Fix the top kernel ", agent: "codex",
+      lines: [
+        "Read rocprofv3-kernel-summary-gemm-bf16-tile64-20260926-102700.png",
+        "gemm_bf16_tile64 is 38% of the step with 31% LDS bank conflicts:",
+        "&nbsp;&nbsp;the B tile is stored with a 64-element stride.",
+        "Edit <span class=\"gold\">kernels/gemm_bf16.hip</span>: pad the LDS tile to 65 columns",
+        "&nbsp;&nbsp;<span class=\"green\">re-profiling: rocprofv3 --kernel-trace ./decode_bench</span>",
+      ],
+      captions: [[1.8, "Hover the nub"], [2.75 + SWITCH, "Click the destination to switch machines"], [4.3 + SWITCH, "Drag over the profiler table"],
+        [6.9 + SWITCH, "Named from the kernel table, offline"], [9.3 + SWITCH, "Sent to <kbd>mi350x</kbd> in the hot aisle"],
+        [99, "Codex on the MI350X box takes it from there"]],
+    },
   };
-  window.SOUNDS = Object.entries(CUES).flatMap(([id, cues]) => cues.map(([t, kind]) => ({ t: +(SCENES[id][0] + t).toFixed(3), kind })))
-    .sort((a, b) => a.t - b.t);
-  window.SECTIONS = Object.fromEntries(Object.entries(SCENES).map(([id, [a]]) => [id, a]));
 
+  function buildShot(id, c) {
+    const bullet = c.agent === "codex" ? "•" : "●", prompt = c.agent === "codex" ? "›" : "&gt;";
+    $(id).innerHTML = `
+      <div class="stage">
+        <div class="bg"></div>
+        <div class="menubar"><b>${c.app}</b><span>File</span><span>Edit</span><span>View</span><span class="clock">${c.clock}</span></div>
+        <div class="window light browser"><div class="bar"><i></i><i></i><i></i><span>${c.url}</span></div><img src="${c.img}" alt=""></div>
+        <div class="window terminal ${c.agent}" data-k="term">
+          <div class="bar"><i></i><i></i><i></i><b>${c.title}</b></div>
+          <div class="term">
+            <div class="dim">${c.cwd}</div>
+            <div><span class="gold">${prompt}</span> <span data-k="typed"></span><span class="path" data-k="pasted"></span><span class="caret" data-k="caret"></span></div>
+            <br>
+            ${c.lines.map((l) => `<div data-k="line">${l.startsWith("&nbsp;") ? l : `<span class="cyan">${bullet}</span> ${l}`}</div>`).join("")}
+          </div>
+        </div>
+        <img class="nub" data-k="nub" src="raw/pill-collapsed.png" alt="">
+        <img class="pill" data-k="pill" src="${c.pill}" alt="">
+        ${c.switchTo ? `<div class="dmenu" data-k="menu">${DESTS.map((d) => `<div>${d}</div>`).join("")}</div>` : ""}
+        <div class="selection" data-k="sel"><em data-k="dims"></em></div>
+        <div class="flash" data-k="flash"></div>
+        <div class="ocr" data-k="ocr"><small>ON-DEVICE OCR</small><span data-k="ocrtext"></span></div>
+        <div class="notification" data-k="note"><img src="raw/app-icon.png" alt=""><div><b>Sent to ${c.dest}</b><span>${c.dir}/${c.name} (path copied)</span></div><small>now</small></div>
+        <div class="keycap" data-k="key" style="top:50%">⌘V</div>
+        <svg class="cursor" data-k="cursor" viewBox="0 0 18 26">${CURSOR}</svg>
+        <svg class="crosshair" data-k="cross" viewBox="0 0 30 30">${CROSS}</svg>
+        <div class="chapter">${c.chapter}</div>
+        <div class="caption" data-k="cap"></div>
+      </div>`;
+    const els = {};
+    $(id).querySelectorAll("[data-k]").forEach((el) => { const k = el.dataset.k; (els[k] = els[k] || []).push(el); });
+    c.el = Object.fromEntries(Object.entries(els).map(([k, v]) => [k, v.length === 1 && k !== "line" ? v[0] : v]));
+  }
+
+  function shotDuration(c) { return 12.1 + (c.switchTo ? SWITCH : 0) + 0.45 * c.lines.length + 0.9; }
+
+  function shotCues(c) {
+    const d = c.switchTo ? SWITCH : 0;
+    const cues = [[2.3 + d, "click"], [3.0 + d, "press"], [4.05 + d, "shutter"], [5.4 + d, "blip"], [6.9 + d, "sent"],
+      ...Array.from({ length: 10 }, (_, i) => [9.8 + d + i * 0.1, "key"]), [10.95 + d, "key"],
+      ...c.lines.map((_, i) => [12.1 + d + i * 0.45, "tick"])];
+    if (c.switchTo) cues.push([1.8, "click"], [2.55, "click"]);
+    return cues;
+  }
+
+  function renderShot(c, t) {
+    T = t;
+    const e = c.el, d = c.switchTo ? SWITCH : 0;
+    const [x0, y0, x1, y1] = c.sel;
+
+    const pillIn = span(1.15, 1.45) * (1 - span(2.55 + d, 2.75 + d));
+    e.pill.style.opacity = pillIn;
+    e.pill.style.transform = `scale(${lerp(0.35, 1, pillIn)})`;
+    e.nub.style.opacity = 1 - pillIn;
+    e.pill.style.filter = T > 2.3 + d && T < 2.5 + d ? "brightness(0.88)" : "none";
+    if (c.switchTo) {
+      e.pill.src = T >= 2.6 ? c.switchTo.pill : c.pill;
+      const open = T >= 1.85 && T < 2.62;
+      e.menu.style.opacity = open ? 1 : 0;
+      [...e.menu.children].forEach((row, i) => row.classList.toggle("hi", i === (T >= 2.3 ? c.switchTo.index : 0)));
+    }
+
+    const path = [[0, 420, 300], [1.1, 905, 490], [1.4, 905, 490]];
+    if (c.switchTo) path.push([1.8, 652, 354], [2.0, 652, 354], [2.35, 664, 405], [2.6, 664, 405]);
+    path.push([2.2 + d, 662, 372], [2.6 + d, 662, 372], [2.9 + d, x0, y0], [3.0 + d, x0, y0], [3.9 + d, x1, y1], [40, x1, y1]);
+    const [cx, cy] = move(path);
+    const selecting = T >= 2.75 + d && T < 4.05 + d;
+    place(e.cursor, cx, cy); place(e.cross, cx, cy);
+    show(e.cursor, !selecting && T < 4.05 + d);
+    e.cross.style.display = selecting ? "block" : "none";
+    e.sel.style.display = T >= 3.0 + d && T < 4.05 + d ? "block" : "none";
+    e.sel.style.left = x0 + "px"; e.sel.style.top = y0 + "px";
+    e.sel.style.width = Math.max(0, cx - x0) + "px"; e.sel.style.height = Math.max(0, cy - y0) + "px";
+    e.dims.textContent = `${Math.round((cx - x0) * 2)} × ${Math.round((cy - y0) * 2)}`;
+    e.flash.style.opacity = T >= 4.05 + d && T < 4.35 + d ? 0.35 * (1 - span(4.05 + d, 4.35 + d)) : 0;
+
+    const ocr = win(4.3 + d, 7.0 + d, 0.25);
+    e.ocr.style.opacity = ocr;
+    place(e.ocr, x0, Math.min(y1 + 10, 440));
+    e.ocr.style.transform = `translateY(${lerp(8, 0, ocr)}px)`;
+    e.ocrtext.innerHTML = T < 5.4 + d ? `<span class="muted">${typed(c.ocr, 4.4 + d, 5.2 + d)}</span>` : `<span class="gold">→</span> ${typed(c.name, 5.4 + d, 6.3 + d)}`;
+
+    slideIn(e.note, 6.9 + d, 9.8 + d);
+
+    const term = span(9.3 + d, 9.7 + d);
+    e.term.style.opacity = term;
+    e.term.style.transform = `translateY(${lerp(18, 0, term)}px) scale(${lerp(0.98, 1, term)})`;
+    e.typed.textContent = typed(c.ask, 9.8 + d, 10.8 + d);
+    const pasted = T >= 11.2 + d;
+    e.pasted.textContent = pasted ? `${c.dir}/${c.name}` : "";
+    e.pasted.style.display = pasted ? "inline" : "none";
+    const key = win(10.9 + d, 11.7 + d, 0.15);
+    e.key.style.opacity = key;
+    e.key.style.transform = `translate(-50%, -50%) scale(${lerp(0.85, 1, key)})`;
+    e.caret.style.visibility = T < 11.9 + d && Math.floor(T * 2.5) % 2 === 0 ? "hidden" : "visible";
+    e.line.forEach((el, i) => { el.style.opacity = span(12.1 + d + i * 0.45, 12.35 + d + i * 0.45); });
+
+    e.cap.innerHTML = c.captions.find(([end]) => T < end)[1];
+  }
+
+  // ---- fleet montage -----------------------------------------------------------------------------
+  const FLEET = [
+    ["spark", "DGX Spark cluster · 2× GB10 · CUDA", "claude", "/home/dev/inbound/train-loss-llama-8b-sft-run-42-20260926-102200.png"],
+    ["mi350x", "MI350X dev box · hot aisle · ROCm", "codex", "/home/dev/inbound/rocprofv3-kernel-summary-gemm-bf16-tile64-20260926-102700.png"],
+    ["work", "Mac Studio · app development", "claude", "/Users/dev/inbound/sign-in-invalid-credentials-20260926-103100.mov"],
+    ["nas", "franklin · ZFS storage · archives", "", "/srv/inbound/eval-results-run-42.parquet"],
+    ["ci", "CI runner · failing builds", "codex", "/home/build/inbound/payment-form-test-failed-20260926-103600.png"],
+  ];
+  $("s7cards").innerHTML = FLEET.map(([name, hw, agent]) => `<div class="card"><div class="row"><b>${name}</b><em class="tag ${agent ? "" : "plain"}">${agent || "storage"}</em></div><div class="hw">${hw}</div><div class="got"></div></div>`).join("");
+
+  function montage(t) {
+    T = t;
+    [...$("s7cards").children].forEach((card, i) => {
+      const a = 0.4 + i * 0.35, k = span(a, a + 0.4);
+      card.style.opacity = k;
+      card.style.transform = `translateY(${lerp(14, 0, k)}px)`;
+      const path = FLEET[i][3], land = 2.2 + i * 0.5;
+      card.querySelector(".got").innerHTML = T < land ? `<span class="ms">waiting for a capture…</span>`
+        : `<span class="ok">✓</span> ${typed(path, land, land + 0.6)}`;
+    });
+    $("s7sub").style.opacity = span(4.8, 5.4);
+  }
+
+  // ---- other scenes ------------------------------------------------------------------------------
   function title(t) {
     T = t;
-    const d = span(0.2, 0.9);
-    $("s1dot").style.transform = `scale(${lerp(0, 1, d)})`;
+    $("s1dot").style.transform = `scale(${lerp(0, 1, span(0.2, 0.9))})`;
     $("s1word").style.opacity = span(0.6, 1.2);
     $("s1word").style.transform = `translateX(${lerp(-16, 0, span(0.6, 1.2))}px)`;
     $("s1tag").style.opacity = span(1.3, 1.9);
@@ -328,154 +481,122 @@
 
   function problem(t) {
     T = t;
-    $("s2h1").style.opacity = win(0.2, 3.1);
-    $("s2h2").style.opacity = win(3.1, 5.7);
-    const map = 1 - span(5.4, 5.8);
-    $("s2map").style.opacity = map;
-    [...$("s2links").querySelectorAll("path")].forEach((p, i) => { p.style.opacity = span(0.4 + i * 0.25, 0.8 + i * 0.25); p.style.strokeDashoffset = -T * 22; });
-    const drop = span(3.2, 3.8);
-    place("s2thumb", lerp(250, 244, drop), lerp(170, 246, drop));
+    $("s2h1").style.opacity = win(0.2, 3.4);
+    $("s2h2").style.opacity = win(3.4, 6.1);
+    $("s2map").style.opacity = 1 - span(5.8, 6.2);
+    [...$("s2links").querySelectorAll("path")].forEach((p, i) => { p.style.opacity = span(0.4 + i * 0.22, 0.8 + i * 0.22); p.style.strokeDashoffset = -T * 22; });
+    [...$("s2map").querySelectorAll(".node.wide")].forEach((n, i) => { const k = span(0.3 + i * 0.22, 0.7 + i * 0.22); n.style.opacity = k; n.style.transform = `translateX(${lerp(18, 0, k)}px)`; });
+    const drop = span(3.5, 4.1);
+    place($("s2thumb"), lerp(250, 244, drop), lerp(140, 226, drop));
     $("s2thumb").style.opacity = drop;
-    place("s2q", 326, 232);
-    $("s2q").style.opacity = span(4.0, 4.3);
-    $("s2q").style.transform = `scale(${lerp(0.4, 1, span(4.0, 4.3))})`;
-    $("s2h3").style.opacity = win(5.8, 10.1);
-    $("s2chores").style.opacity = win(5.8, 10.1);
+    place($("s2q"), 326, 212);
+    $("s2q").style.opacity = span(4.3, 4.6);
+    $("s2q").style.transform = `scale(${lerp(0.4, 1, span(4.3, 4.6))})`;
+    $("s2h3").style.opacity = win(6.2, 11.3);
+    $("s2chores").style.opacity = win(6.2, 11.3);
     [...$("s2chores").children].forEach((row, i) => {
-      row.style.opacity = span(6.0 + i * 0.45, 6.3 + i * 0.45);
-      row.style.setProperty("--strike", `${span(8.6 + i * 0.12, 9.1 + i * 0.12) * 94}%`);
-      row.style.color = T > 8.8 + i * 0.12 ? "#657b83" : "";
+      row.style.opacity = span(6.4 + i * 0.45, 6.7 + i * 0.45);
+      row.style.setProperty("--strike", `${span(9.0 + i * 0.12, 9.5 + i * 0.12) * 94}%`);
+      row.style.color = T > 9.2 + i * 0.12 ? "#657b83" : "";
     });
-    $("s2ans").style.opacity = span(8.9, 9.4);
-    $("s2ans").style.top = `${lerp(520, 520, 0)}px`;
-  }
-
-  const P1 = "/home/dev/inbound/network-settings-proxy-host-20260926-101400.png";
-  function screenshot(t) {
-    T = t;
-    const pillIn = span(1.15, 1.45) * (1 - span(2.55, 2.75));
-    $("s3pill").style.opacity = pillIn;
-    $("s3pill").style.transform = `scale(${lerp(0.35, 1, pillIn)})`;
-    $("s3nub").style.opacity = 1 - pillIn;
-    $("s3pill").style.filter = T > 2.3 && T < 2.5 ? "brightness(0.88)" : "none";
-
-    const [cx, cy] = move([[0, 420, 300], [1.1, 905, 490], [1.5, 905, 490], [2.2, 662, 372], [2.6, 662, 372], [2.9, 58, 196], [3.0, 58, 196], [3.9, 594, 246], [20, 594, 246]]);
-    const selecting = T >= 2.75 && T < 4.05;
-    place("s3cursor", cx, cy); place("s3cross", cx, cy);
-    show("s3cursor", !selecting && T < 4.05);
-    $("s3cross").style.display = selecting ? "block" : "none";
-    const sel = $("s3sel");
-    sel.style.display = T >= 3.0 && T < 4.05 ? "block" : "none";
-    sel.style.left = "58px"; sel.style.top = "196px";
-    sel.style.width = Math.max(0, cx - 58) + "px"; sel.style.height = Math.max(0, cy - 196) + "px";
-    $("s3dims").textContent = `${Math.round((cx - 58) * 2)} × ${Math.round((cy - 196) * 2)}`;
-    $("s3flash").style.opacity = T >= 4.05 && T < 4.35 ? 0.35 * (1 - span(4.05, 4.35)) : 0;
-
-    const ocr = win(4.3, 7.0, 0.25);
-    $("s3ocr").style.opacity = ocr;
-    $("s3ocr").style.transform = `translateY(${lerp(8, 0, ocr)}px)`;
-    const words = "Network Settings · Proxy host · proxy.internal…";
-    const name = "network-settings-proxy-host-20260926-101400.png";
-    $("s3ocrtext").innerHTML = T < 5.4 ? `<span class="muted">${typed(words, 4.4, 5.2)}</span>` : `<span class="gold">→</span> ${typed(name, 5.4, 6.3)}`;
-
-    slideIn("s3note", 6.9, 9.8);
-
-    const term = span(9.3, 9.7);
-    $("s3term").style.opacity = term;
-    $("s3term").style.transform = `translateY(${lerp(18, 0, term)}px) scale(${lerp(0.98, 1, term)})`;
-    $("s3typed").textContent = typed("Fix the overflow in ", 9.8, 10.8);
-    const pasted = T >= 11.2;
-    $("s3pasted").textContent = pasted ? P1 : "";
-    $("s3pasted").style.display = pasted ? "inline" : "none";
-    const key = win(10.9, 11.7, 0.15);
-    $("s3key").style.opacity = key;
-    $("s3key").style.transform = `translate(-50%, -50%) scale(${lerp(0.85, 1, key)})`;
-    $("s3caret").style.visibility = T < 11.9 && Math.floor(T * 2.5) % 2 === 0 ? "hidden" : "visible";
-    ["s3l1", "s3l2", "s3l3", "s3l4", "s3l5"].forEach((id, i) => { $(id).style.opacity = span(12.1 + i * 0.45, 12.35 + i * 0.45); });
-
-    $("s3cap").innerHTML = T < 2.75 ? "Hover the nub and click <kbd>Shot</kbd>, or press <kbd>⌃⌥⌘S</kbd>"
-      : T < 4.3 ? "Drag over what your agent should see"
-      : T < 6.9 ? "Offline OCR names the file after what's on screen"
-      : T < 9.3 ? "Sent over SSH to <kbd>gpu</kbd>. The remote path is on your clipboard."
-      : "Paste it into the agent running on <kbd>gpu</kbd>";
-  }
-
-  function dragDrop(t) {
-    T = t;
-    const [cx, cy] = move([[0, 380, 440], [0.8, 170, 160], [1.1, 170, 160], [2.2, 900, 486], [2.7, 900, 486], [3.3, 705, 462], [3.9, 705, 462], [8, 705, 462]]);
-    place("s4cursor", cx, cy);
-    $("s4row").classList.toggle("sel", T >= 0.9);
-    const dragging = T >= 1.1 && T < 3.9;
-    $("s4ghost").style.opacity = dragging ? 1 : 0;
-    place("s4ghost", cx > 600 ? cx - 150 : cx + 10, cy + 12);
-    const tiles = span(2.3, 2.6) * (1 - span(3.95, 4.2));
-    $("s4tiles").style.opacity = tiles;
-    $("s4tiles").style.transform = `scale(${lerp(0.4, 1, tiles)})`;
-    $("s4nub").style.opacity = 1 - tiles;
-    $("s4hi").style.opacity = T >= 3.25 && T < 3.95 ? tiles : 0;
-    slideIn("s4note", 4.2, 7.9);
-    $("s4cap").innerHTML = T < 2.3 ? "Drag any file onto the nub"
-      : T < 4.1 ? "Drop it on the machine that needs it"
-      : "Delivered to <kbd>nas</kbd>, path copied";
+    $("s2ans").style.opacity = span(9.3, 9.8);
   }
 
   function recording(t) {
     T = t;
-    const key = win(0.2, 1.1, 0.15);
+    const key = win(0.2, 1.1, 0.15), stopKey = win(5.9, 6.7, 0.15);
     $("s5key").textContent = T < 5 ? "⌃⌥⌘V" : "⌘⌃Esc";
-    const stopKey = win(5.9, 6.7, 0.15);
     $("s5key").style.opacity = Math.max(key, stopKey);
     $("s5key").style.transform = `translate(-50%, -50%) scale(${lerp(0.85, 1, Math.max(key, stopKey))})`;
-
-    pop("s5picker", 1.0, 3.0);
+    pop($("s5picker"), 1.0, 3.0);
     $("s5dim").style.opacity = T >= 2.1 && T < 3.0 ? win(1.0, 3.0) : 0;
     $("s5pick").style.opacity = T >= 2.1 && T < 3.0 ? win(1.0, 3.0) : 0;
-
-    const [cx, cy] = move([[0, 480, 470], [1.4, 480, 470], [2.0, 689, 290], [2.4, 689, 290], [2.8, 708, 396], [3.1, 708, 396], [3.2, 222, 60], [3.3, 222, 60], [4.0, 456, 264], [4.3, 456, 264], [5.0, 338, 228], [5.3, 338, 228], [5.8, 520, 300], [6.9, 470, 250], [7.5, 331, 236], [20, 331, 236]]);
-    place("s5cursor", cx, cy); place("s5cross", cx, cy);
+    const [cx, cy] = move([[0, 480, 470], [1.4, 480, 470], [2.0, 689, 290], [2.4, 689, 290], [2.8, 708, 396], [3.1, 708, 396], [3.2, 222, 60], [3.3, 222, 60], [4.0, 456, 264], [4.3, 456, 264], [5.0, 338, 228], [5.3, 338, 228], [5.8, 520, 300], [6.9, 520, 300], [7.5, 331, 236], [20, 331, 236]]);
+    place($("s5cursor"), cx, cy); place($("s5cross"), cx, cy);
     const selecting = T >= 3.1 && T < 4.1;
-    show("s5cursor", !selecting && T < 8.0);
+    show($("s5cursor"), !selecting && T < 8.0);
     $("s5cross").style.display = selecting ? "block" : "none";
     const sel = $("s5sel");
     sel.style.display = T >= 3.3 && T < 4.1 ? "block" : "none";
     sel.style.left = "222px"; sel.style.top = "60px";
     sel.style.width = Math.max(0, cx - 222) + "px"; sel.style.height = Math.max(0, cy - 60) + "px";
     $("s5dims").textContent = `${Math.round((cx - 222) * 2)} × ${Math.round((cy - 60) * 2)}`;
-
-    const recording = T >= 4.1 && T < 6.3;
-    const frame = $("s5frame");
-    frame.style.display = recording ? "block" : "none";
+    const rec = T >= 4.1 && T < 6.3, frame = $("s5frame");
+    frame.style.display = rec ? "block" : "none";
     frame.style.left = "222px"; frame.style.top = "60px"; frame.style.width = "234px"; frame.style.height = "204px";
-    $("s5clock").innerHTML = recording ? `<span class="rec">0:0${Math.min(9, Math.floor((T - 4.1) * 2.2))}</span>` : "Sat 10:19";
-    $("s5clock").style.opacity = 1;
-
-    pop("s5ready", 6.6, 7.9);
+    $("s5clock").innerHTML = rec ? `<span class="rec">0:0${Math.min(9, Math.floor((T - 4.1) * 2.2))}</span>` : "Sat 10:31";
+    pop($("s5ready"), 6.6, 7.9);
     $("s5ready").style.filter = T > 7.55 && T < 7.75 ? "brightness(0.9)" : "none";
-    slideIn("s5note", 7.9, 11);
-
+    slideIn($("s5note"), 7.9, 11);
     $("s5cap").innerHTML = T < 3.1 ? "<kbd>⌃⌥⌘V</kbd> records a whole display or any region"
       : T < 4.1 ? "Drag over the part that matters"
-      : T < 6.6 ? "Reproduce the bug, then stop with <kbd>⌘⌃Esc</kbd>"
+      : T < 6.6 ? "Reproduce the flaky login, then stop with <kbd>⌘⌃Esc</kbd>"
       : T < 7.9 ? "Send it as-is, trim it, or shrink it to 720p"
       : "Recordings get names and paths too";
+  }
+
+  function dragDrop(t) {
+    T = t;
+    const [cx, cy] = move([[0, 380, 440], [0.8, 190, 140], [1.1, 190, 140], [2.2, 900, 486], [2.7, 900, 486], [3.3, 858, 462], [3.9, 858, 462], [8, 858, 462]]);
+    place($("s6cursor"), cx, cy);
+    $("s6row").classList.toggle("sel", T >= 0.9);
+    $("s6ghost").style.opacity = T >= 1.1 && T < 3.9 ? 1 : 0;
+    place($("s6ghost"), cx > 560 ? cx - 230 : cx + 10, cy + 12);
+    const tiles = span(2.3, 2.6) * (1 - span(3.95, 4.2));
+    $("s6tiles").style.opacity = tiles;
+    $("s6tiles").style.transform = `scale(${lerp(0.4, 1, tiles)})`;
+    $("s6nub").style.opacity = 1 - tiles;
+    $("s6hi").style.opacity = T >= 3.25 && T < 3.95 ? tiles : 0;
+    slideIn($("s6note"), 4.2, 7.9);
+    $("s6cap").innerHTML = T < 2.3 ? "Drag any file onto the nub"
+      : T < 4.1 ? "Drop 48 MB of eval results on the NAS"
+      : "Delivered to <kbd>nas</kbd>, path copied for the pipeline";
   }
 
   function setup(t) {
     T = t;
     const k = span(0.1, 0.7);
-    $("s6img").style.transform = `translateY(${lerp(20, 0, k)}px)`;
-    $("s6img").style.opacity = k;
-    [...$("s6points").children].forEach((li, i) => { li.style.opacity = span(0.5 + i * 0.55, 0.9 + i * 0.55); li.style.transform = `translateX(${lerp(14, 0, span(0.5 + i * 0.55, 0.9 + i * 0.55))}px)`; });
+    $("s8img").style.transform = `translateY(${lerp(20, 0, k)}px)`;
+    $("s8img").style.opacity = k;
+    [...$("s8points").children].forEach((li, i) => { const a = 0.5 + i * 0.55; li.style.opacity = span(a, a + 0.4); li.style.transform = `translateX(${lerp(14, 0, span(a, a + 0.4))}px)`; });
   }
 
+  // ---- timeline ----------------------------------------------------------------------------------
+  Object.entries(SHOT_SCENES).forEach(([id, c]) => buildShot(id, c));
+  const LENGTHS = { s1: 4.6, s2: 11.2, s3: shotDuration(SHOT_SCENES.s3), s4: shotDuration(SHOT_SCENES.s4), s5: 9.8, s6: 8.2, s7: 7.4, s8: 5.0, s9: 4.4 };
+  const SCENES = {};
+  let clock = 0;
+  for (const [id, len] of Object.entries(LENGTHS)) { SCENES[id] = [clock, clock + len]; clock += len - 0.2; }
+  window.DURATION = +(clock + 0.2).toFixed(2);
+  const FNS = { s1: title, s2: problem, s3: (t) => renderShot(SHOT_SCENES.s3, t), s4: (t) => renderShot(SHOT_SCENES.s4, t),
+    s5: recording, s6: dragDrop, s7: montage, s8: setup, s9: () => {} };
+
+  // Sound cues for soundtrack.mjs, in scene-local time (the same clock as the animations above).
+  const CUES = {
+    s2: [[3.9, "pop"], [4.3, "pop"], ...[0, 1, 2, 3, 4].map((i) => [6.4 + i * 0.45, "tick"]), [9.0, "swish"], [9.3, "rise"]],
+    s3: shotCues(SHOT_SCENES.s3),
+    s4: shotCues(SHOT_SCENES.s4),
+    s5: [[0.2, "key"], [1.0, "pop"], [2.4, "click"], [2.8, "click"], [3.3, "press"], [4.1, "rec"], [5.0, "click"],
+         [5.9, "key"], [6.2, "recstop"], [6.6, "pop"], [7.55, "click"], [7.9, "sent"]],
+    s6: [[0.9, "click"], [2.3, "pop"], [3.3, "blip"], [3.9, "drop"], [4.2, "sent"]],
+    s7: FLEET.map((_, i) => [2.2 + i * 0.5, "blip"]),
+    s8: [0, 1, 2, 3].map((i) => [0.5 + i * 0.55, "tick"]),
+    s9: [[0.1, "bell"]],
+  };
+  window.SOUNDS = Object.entries(CUES).flatMap(([id, cues]) => cues.map(([t, kind]) => ({ t: +(SCENES[id][0] + t).toFixed(3), kind })))
+    .sort((a, b) => a.t - b.t);
+  // Music sections: title, problem, product scenes, montage/setup, end card.
+  window.SECTIONS = { s1: SCENES.s1[0], s2: SCENES.s2[0], s3: SCENES.s3[0], s4: SCENES.s6[0], s7: SCENES.s9[0] };
+  window.CHAPTERS = Object.fromEntries(Object.entries(SCENES).map(([id, [a]]) => [id, +a.toFixed(1)]));
+
   window.render = (t) => {
-    const fns = { s1: title, s2: problem, s3: screenshot, s4: dragDrop, s5: recording, s6: setup, s7: () => {} };
+    const last = Object.keys(SCENES).at(-1);
     for (const [id, [a, b]] of Object.entries(SCENES)) {
       T = t;
-      const o = id === "s1" ? 1 - span(b - 0.5, b) : id === "s7" ? span(a, a + 0.5) : win(a, b, 0.5);
+      const o = id === "s1" ? 1 - span(b - 0.5, b) : id === last ? span(a, a + 0.5) : win(a, b, 0.5);
       $(id).style.opacity = o;
       $(id).style.visibility = o > 0 ? "visible" : "hidden";
-      if (o > 0) fns[id](t - a);
+      if (o > 0) FNS[id](t - a);
     }
   };
   window.render(parseFloat((location.hash.match(/t=([\d.]+)/) || [0, "0"])[1]));

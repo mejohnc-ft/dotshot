@@ -1,7 +1,7 @@
 # A tour of dotshot
 
 Every screen you'll see, in the order you'll see it. For the short version, watch
-the [55-second intro](images/intro.mp4) or read the [README](../README.md).
+the [80-second intro](images/intro.mp4) or read the [README](../README.md).
 
 - [Setup](#setup)
 - [Everyday use](#everyday-use)
