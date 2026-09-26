@@ -49,8 +49,8 @@ shoot_once() {
   pkill -f "$APP/Contents/MacOS/dotshot" 2>/dev/null || true
   while pgrep -f "$APP/Contents/MacOS/dotshot" >/dev/null; do sleep 0.2; done
   open -n "${env_args[@]}" "$APP"
-  local pid="" window="" attempt
-  for attempt in $(seq 1 50); do
+  local pid="" window=""
+  for _ in $(seq 1 50); do
     sleep 0.3
     pid="$(pgrep -n -f "$APP/Contents/MacOS/dotshot" || true)"
     [ -n "$pid" ] || continue
@@ -65,8 +65,8 @@ shoot_once() {
 
 # Launches occasionally race the previous instance's exit; retry a few times.
 shoot() {
-  local attempt
-  for attempt in 1 2 3; do
+  local _
+  for _ in 1 2 3; do
     shoot_once "$@" && return 0
     sleep 1
   done
