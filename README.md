@@ -130,6 +130,21 @@ open 'dotshot://image?dest=work'
 or alias, remote folder). You can edit it by hand. See
 [`config/destinations.example.tsv`](config/destinations.example.tsv).
 
+## How it compares
+
+Other tools solve part of this, and one of them may suit you better:
+
+- [clipbridge](https://github.com/skeptrunedev/clipbridge) lets you press Ctrl+V for a clipboard image inside Claude Code or Codex on a Linux host.
+- [clipssh](https://github.com/samuellawrentz/clipssh), [clipport](https://github.com/arihantsethia/clipport), and [claude-screenshot-uploader](https://github.com/mdrzn/claude-screenshot-uploader) upload a clipboard image or screenshot to one server and copy the path.
+- The VS Code Remote-SSH image-paste extensions do the same inside the editor's terminal.
+
+dotshot is for people who run agents on **several machines**. It's a native app
+with named destinations you switch between, screen recordings as well as
+screenshots, OCR file names an agent can make sense of, drag-and-drop for any
+file, and a setup that tests and diagnoses each SSH connection. Under the hood
+it's `screencapture` plus `scp` on purpose: nothing new runs on your
+destinations.
+
 ## Privacy and security
 
 dotshot can read the screen only after you grant Screen Recording permission.

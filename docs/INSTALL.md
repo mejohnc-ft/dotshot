@@ -129,6 +129,10 @@ Captures stay in `~/Shots`. To remove the old app afterward, run
 dotshot doesn't check for updates or connect to the internet on its own.
 
 - **DMG install:** download the new release, quit dotshot (hover the nub and click ×), and replace the app in Applications. Your settings are kept.
+  Builds that aren't notarized have a new code signature each release, so macOS
+  may ask for Screen Recording permission again. If captures come back blank,
+  turn dotshot off and on under **Privacy & Security → Screen & System Audio Recording**,
+  or run `tccutil reset ScreenCapture com.mejohnc.dotshot` and relaunch.
 - **Source install:** `git pull && ./scripts/install.sh`
 
 To get notified about new versions, **Watch → Custom → Releases** on the

@@ -9,7 +9,7 @@ All notable changes to dotshot are documented here. The format follows
 First public release. **Shot Pill is now dotshot.**
 
 ### Added
-- Signed release downloads: a universal (Apple silicon + Intel) DMG and ZIP with SHA-256 checksums
+- Release downloads: a universal (Apple silicon + Intel) DMG and ZIP with SHA-256 checksums (ad-hoc signed unless the release notes say notarized)
 - Automatic migration from Shot Pill: destinations, preferences, and setup state are imported once, and a running Shot Pill is quit
 - `dotshot://setup?step=<name>` opens setup at a specific step
 - **Check Again** button for the Screen Recording permission step
