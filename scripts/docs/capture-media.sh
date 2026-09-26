@@ -91,7 +91,7 @@ defaults write "$DEMO_ID" dotshot.dest work
 pkill -f "$APP/Contents/MacOS/dotshot" 2>/dev/null || true
 
 echo "==> post-recording panel"
-DOTSHOT_CAPTURABLE=1 "$APP/Contents/Resources/panel" "Recording ready" "Send as-is, trim in QuickTime, or resize smaller." 0 "Send,Trim,Resize" "$WORK/Shots" >/dev/null 2>&1 &
+DOTSHOT_CAPTURABLE=1 "$APP/Contents/Resources/panel" "Recording ready" "Send as-is, trim it, or resize it smaller." 0 "Send,Trim,Resize" "$WORK/Shots" >/dev/null 2>&1 &
 panel_pid=$!
 window=""
 for _ in $(seq 1 30); do

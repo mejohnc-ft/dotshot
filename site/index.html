@@ -290,7 +290,7 @@
       <p class="lede">dotshot idles as a 42px camera nub in the corner of your screen. Hover to reveal capture controls, destinations, accents, and recent captures.</p>
       <div class="features">
         <div class="feature"><span class="icon" aria-hidden="true">🎯</span><h3>Region shots, smart names</h3><p>On-device Apple Vision OCR names files after what is on screen, like <code>payment-form-test-failed-…png</code>.</p></div>
-        <div class="feature"><span class="icon" aria-hidden="true">🎬</span><h3>Recordings</h3><p>Record a full display or a selected region, then send as-is, trim in QuickTime, or shrink to 720p.</p></div>
+        <div class="feature"><span class="icon" aria-hidden="true">🎬</span><h3>Recordings</h3><p>Record a full display or a selected region, then send as-is, trim it, or shrink it to 720p.</p></div>
         <div class="feature"><span class="icon" aria-hidden="true">🛰️</span><h3>Many destinations</h3><p>Name each machine — <code>work</code>, <code>gpu</code>, <code>nas</code> — and switch from the pill. Drag any file onto the nub to send it.</p></div>
         <div class="feature"><span class="icon" aria-hidden="true">⌨️</span><h3>Global shortcuts</h3><p><kbd>⌃⌥⌘S</kbd> for a screenshot, <kbd>⌃⌥⌘V</kbd> for a recording. No Accessibility permission required.</p></div>
         <div class="feature"><span class="icon" aria-hidden="true">🔗</span><h3>Automation URLs</h3><p>Trigger captures from Shortcuts, Raycast, BetterTouchTool, or scripts with <code>dotshot://</code> links.</p></div>
@@ -435,7 +435,10 @@
         <li>No analytics, telemetry, or automatic update pings</li>
         <li>Transfers use the system <code>ssh</code>/<code>scp</code> and your existing keys</li>
         <li>Never stores passwords or reads private keys</li>
-        <li>Host-key checking stays on; password prompts are disabled</li>
+        <li>Strict host-key checking; no password prompts</li>
+        <li>Private files on both ends, never overwritten</li>
+        <li>Secret-looking words kept out of file names</li>
+        <li>Links that would start a recording ask first</li>
         <li>Open source under the MIT License</li>
       </ul>
     </div>

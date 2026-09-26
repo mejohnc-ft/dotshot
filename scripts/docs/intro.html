@@ -108,7 +108,7 @@
   .ficon { width: 14px; height: 17px; border-radius: 2px; background: #fff; box-shadow: 0 0 0 1px #c7c7cc; position: relative; }
   .ficon::after { content: ""; position: absolute; left: 3px; right: 3px; top: 5px; height: 1.5px; background: #c7c7cc; box-shadow: 0 3px 0 #c7c7cc, 0 6px 0 #c7c7cc; }
   .ghost { position: absolute; display: flex; align-items: center; gap: 7px; font-size: 12px; color: #fff; background: rgba(10, 100, 214, 0.85); padding: 5px 9px; border-radius: 7px; z-index: 7; }
-  .tiles { position: absolute; right: 18px; bottom: 16px; width: 320px; transform-origin: 100% 100%; }
+  .tiles { position: absolute; right: 18px; bottom: 16px; width: 450px; transform-origin: 100% 100%; }
   .tilehi { position: absolute; border-radius: 10px; box-shadow: 0 0 0 3px #fdf6e3 inset; background: rgba(255, 255, 255, 0.16); }
 
   /* recording */
@@ -238,7 +238,7 @@
     </div>
     <img class="nub" id="s6nub" src="raw/pill-collapsed.png" alt="">
     <img class="tiles" id="s6tiles" src="raw/pill-drop.png" alt="">
-    <div class="tilehi" id="s6hi" style="left:786px;top:416px;width:146px;height:98px"></div>
+    <div class="tilehi" id="s6hi" style="left:503px;top:416px;width:138px;height:98px"></div>
     <div class="ghost" id="s6ghost"><span class="ficon"></span>eval-results-run-42.parquet</div>
     <div class="notification" id="s6note"><img src="raw/app-icon.png" alt=""><div><b>Sent to nas</b><span>/srv/inbound/eval-results-run-42.parquet (path copied)</span></div><small>now</small></div>
     <svg class="cursor" id="s6cursor" viewBox="0 0 18 26"><path d="M1 1 L1 20 L6 15.5 L9.5 23.5 L13 22 L9.5 14 L16 14 Z" fill="#000" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg>
@@ -537,11 +537,11 @@
 
   function dragDrop(t) {
     T = t;
-    const [cx, cy] = move([[0, 380, 440], [0.8, 190, 140], [1.1, 190, 140], [2.2, 900, 486], [2.7, 900, 486], [3.3, 858, 462], [3.9, 858, 462], [8, 858, 462]]);
+    const [cx, cy] = move([[0, 380, 440], [0.8, 190, 140], [1.1, 190, 140], [2.2, 900, 486], [2.7, 900, 486], [3.3, 572, 462], [3.9, 572, 462], [8, 572, 462]]);
     place($("s6cursor"), cx, cy);
     $("s6row").classList.toggle("sel", T >= 0.9);
     $("s6ghost").style.opacity = T >= 1.1 && T < 3.9 ? 1 : 0;
-    place($("s6ghost"), cx > 560 ? cx - 230 : cx + 10, cy + 12);
+    place($("s6ghost"), cx > 540 ? cx - 230 : cx + 10, cx > 540 ? cy - 44 : cy + 12);
     const tiles = span(2.3, 2.6) * (1 - span(3.95, 4.2));
     $("s6tiles").style.opacity = tiles;
     $("s6tiles").style.transform = `scale(${lerp(0.4, 1, tiles)})`;

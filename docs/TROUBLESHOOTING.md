@@ -99,7 +99,7 @@ Files sent by drag and drop keep their names, with spaces replaced by `-`.
 ## Recordings
 
 - **Stop recording:** `⌘⌃Esc`, or the stop button in the menu bar.
-- After recording, choose **Send**, **Trim** (opens QuickTime; save, then click Send), or **Resize** (re-encodes at 1280×720). Cancel keeps the recording in `~/Shots` without sending it.
+- After recording, choose **Send**, **Trim** (drag the yellow handles, then click Trim), or **Resize** (re-encodes at 1280×720). Cancel keeps the recording in `~/Shots` without sending it.
 - Recordings of a selected area can land in your screenshot folder first. dotshot finds them and moves them into `~/Shots`.
 
 ## Still stuck?

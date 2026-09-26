@@ -46,8 +46,8 @@ and `DOTSHOT_SHOTS_DIR` isolate settings when testing on your main account.
 - [ ] Esc during selection cancels silently, sends nothing
 - [ ] Pill **Shot** button does the same; destination menu switches destination
 - [ ] `⌃⌥⌘V` opens the recording picker with every display plus Selected Portion; recording a display and a region both deliver a `.mov`
-- [ ] After recording: Send, Trim (QuickTime), Resize (1280×720), and Cancel (kept locally) behave as described
-- [ ] Drag a file with spaces in its name onto the nub → tiles fill the panel → drop on each tile delivers to the matching destination with a `-` separated name
+- [ ] After recording: Send, Trim (trim window: drag handles, Trim → sends only the kept range; Cancel → kept locally, nothing sent), Resize (1280×720, original sent if not smaller), and Cancel (kept locally, notification) behave as described
+- [ ] Drag a file with spaces or `$(…)` in its name onto the nub → tiles fill the panel (up to six) → drop on each tile delivers to the matching destination as `safe-name-<timestamp>.ext`; a symlink or folder is refused with a notification
 - [ ] With the destination offline: notification **Saved locally — send failed**, local path on clipboard, error in `~/Shots/.dotshot.log`, no hang longer than ~10 s
 - [ ] With no destinations configured, a shortcut opens setup instead of failing silently
 - [ ] The pill never appears in its own screenshots or recordings

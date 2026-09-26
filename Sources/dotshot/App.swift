@@ -8,7 +8,9 @@ import QuickLookThumbnailing
 import UniformTypeIdentifiers
 import UserNotifications
 
-let PATHS = Paths()
+/// Released builds ignore DOTSHOT_* environment overrides; see `developmentOverridesAllowed`.
+let OVERRIDES = developmentOverridesAllowed(bundleID: Bundle.main.bundleIdentifier)
+let PATHS = OVERRIDES ? Paths() : Paths(environment: [:])
 
 /// Documentation-capture switches. Never set in normal use.
 struct DemoOptions {
@@ -26,13 +28,15 @@ struct DemoOptions {
         openPicker = environment["DOTSHOT_DEMO_PICKER"] == "1"
     }
 }
-let DEMO = DemoOptions()
+let DEMO = OVERRIDES ? DemoOptions() : DemoOptions([:])
 let SHOTS = PATHS.shots
 let SCRIPT = Bundle.main.resourceURL?.appendingPathComponent("dotshot-capture.sh").path ?? ""
 
 let COLLAPSED = NSSize(width: 56, height: 56)   // small round nub when idle
 let EXPANDED  = NSSize(width: 500, height: 262)
 let QUADRANT  = NSSize(width: 320, height: 224)
+/// Drop grid size: wider when five or six destinations need three columns.
+func dropGridSize(_ count: Int) -> NSSize { DropGrid.columns(for: min(count, DropGrid.maxTiles)) > 2 ? NSSize(width: 450, height: 224) : QUADRANT }
 let RECORDING_PICKER = NSSize(width: 700, height: 390)
 
 weak var pillWindow: NSWindow?
@@ -120,6 +124,8 @@ let TILECOLORS: [Color] = [
     Color(red: 0.165, green: 0.631, blue: 0.596),  // cyan
     Color(red: 0.424, green: 0.443, blue: 0.769),  // violet
     Color(red: 0.522, green: 0.600, blue: 0.000),  // green
+    Color(red: 0.149, green: 0.545, blue: 0.824),  // blue
+    Color(red: 0.827, green: 0.212, blue: 0.510),  // magenta
 ]
 
 // Accent presets — Solarized-forward, gold first (matches Solarized Dark bg). Persists across launches.
@@ -144,15 +150,17 @@ func idealText(on c: Color) -> Color {
     return lum > 0.62 ? .black : .white
 }
 
+/// Interactive captures in progress; a second shortcut press while one runs is ignored.
+var activeCaptures = 0
+
 /// Runs the bundled capture script. Arguments are passed directly, never through a shell string.
-func runScript(_ arguments: [String]) {
+@discardableResult
+func runScript(_ arguments: [String], onExit: (() -> Void)? = nil) -> Bool {
     let process = Process()
     process.executableURL = URL(fileURLWithPath: "/bin/bash")
-    process.arguments = [SCRIPT] + arguments
-    // The script reports progress on stdout so notifications come from dotshot, not Script Editor.
-    var environment = ProcessInfo.processInfo.environment
-    environment["DOTSHOT_NOTIFY_STDOUT"] = "1"
-    process.environment = environment
+    process.arguments = ["--noprofile", "--norc", SCRIPT] + arguments
+    process.environment = scriptEnvironment(paths: PATHS)
+    process.terminationHandler = { _ in DispatchQueue.main.async { onExit?() } }
     let output = Pipe()
     process.standardOutput = output
     var buffer = Data()
@@ -174,9 +182,11 @@ func runScript(_ arguments: [String]) {
     }
     do {
         try process.run()
+        return true
     } catch {
         NSLog("dotshot: could not run capture script: \(error)")
         NSSound.beep()
+        return false
     }
 }
 
@@ -209,17 +219,47 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     }
 }
 
-/// Opens setup instead of failing silently when no destination is configured yet.
+/// Opens setup instead of failing silently when no destination is configured yet. A named destination
+/// that doesn't exist (a typo in a dotshot:// link) is reported instead of sending somewhere else.
 func requireDestination(_ requested: String? = nil) -> String? {
     if let dest = currentDestination(requested) { return dest }
     NSSound.beep()
-    SetupController.shared.present(initialStep: .destinations)
+    if let requested, !DestinationStore.shared.items.isEmpty {
+        Notifier.shared.post(title: "Unknown destination", body: "No destination named '\(requested)'. Nothing was captured.")
+    } else {
+        SetupController.shared.present(initialStep: .destinations)
+    }
     return nil
 }
 
 func runCapture(_ mode: String, _ requested: String? = nil, _ extraArguments: [String] = []) {
     guard let dest = requireDestination(requested) else { return }
-    runScript([mode, dest] + extraArguments)
+    // One interactive capture at a time: overlapping selections or recordings would race each other.
+    guard activeCaptures == 0 else { NSSound.beep(); return }
+    activeCaptures += 1
+    if !runScript([mode, dest] + extraArguments, onExit: { activeCaptures = max(0, activeCaptures - 1) }) {
+        activeCaptures = max(0, activeCaptures - 1)
+    }
+}
+
+/// Recordings started by a dotshot:// link ask first, unless the user allowed automation to record freely.
+/// Any app or web page can open a link, and a display recording starts without further interaction.
+func confirmURLRecording(_ description: String, to requested: String?) -> Bool {
+    if UserDefaults.standard.bool(forKey: "dotshot.allowURLRecording") { return true }
+    guard let dest = currentDestination(requested) else { return true }  // requireDestination reports it
+    NSApp.activate(ignoringOtherApps: true)
+    let alert = NSAlert()
+    alert.messageText = "Start recording \(description)?"
+    alert.informativeText = "A dotshot:// link asked to record \(description) and send it to \(dest). Only continue if you started this."
+    alert.addButton(withTitle: "Record")
+    alert.addButton(withTitle: "Cancel")
+    alert.showsSuppressionButton = true
+    alert.suppressionButton?.title = "Always allow links to start recordings"
+    let confirmed = alert.runModal() == .alertFirstButtonReturn
+    if confirmed, alert.suppressionButton?.state == .on {
+        UserDefaults.standard.set(true, forKey: "dotshot.allowURLRecording")
+    }
+    return confirmed
 }
 
 struct RecordingSource: Identifiable {
@@ -513,9 +553,9 @@ func runCaptureURL(_ url: URL) {
     case .image(let dest):
         runCapture("image", dest)
     case .videoDisplay(let dest, let screen):
-        runCapture("video", dest, [String(screen)])
+        if confirmURLRecording("display \(screen)", to: dest) { runCapture("video", dest, [String(screen)]) }
     case .videoRegion(let dest):
-        runCapture("video", dest)
+        if confirmURLRecording("a selected area", to: dest) { runCapture("video", dest) }
     case .videoPicker(let dest):
         chooseRecordingSource(to: dest)
     case .setup(let step):
@@ -706,7 +746,7 @@ struct PillView: View {
             if !dropMode { resizePill(v ? EXPANDED : COLLAPSED); if v { gallery.load() } }
         }
         .onChange(of: dropMode) { _, v in
-            resizePill(v ? QUADRANT : (state.expanded ? EXPANDED : COLLAPSED))
+            resizePill(v ? dropGridSize(destinations.items.count) : (state.expanded ? EXPANDED : COLLAPSED))
         }
         .onAppear {
             if !destinations.items.contains(where: { $0.id == dest }) {
@@ -719,7 +759,7 @@ struct PillView: View {
                 resizePill(COLLAPSED)
             case "drop":
                 dropMode = true
-                resizePill(QUADRANT)
+                resizePill(dropGridSize(destinations.items.count))
             case "expanded":
                 resizePill(EXPANDED)
             default:
@@ -731,7 +771,7 @@ struct PillView: View {
 
     // Map the drop point to a quadrant → host, then ship each dropped file there.
     private func handleDrop(_ providers: [NSItemProvider], at loc: CGPoint) -> Bool {
-        guard let index = DropGrid.tileIndex(at: loc, in: QUADRANT, count: destinations.items.count) else {
+        guard let index = DropGrid.tileIndex(at: loc, in: dropGridSize(destinations.items.count), count: destinations.items.count) else {
             return false
         }
         let host = destinations.items[index].id
@@ -765,7 +805,7 @@ struct PillView: View {
             }
         }
         .padding(10)
-        .frame(width: QUADRANT.width, height: QUADRANT.height)
+        .frame(width: dropGridSize(tiles.count).width, height: dropGridSize(tiles.count).height)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(.white.opacity(0.12)))
         .shadow(color: .black.opacity(0.32), radius: 18, y: 8)
@@ -1573,26 +1613,29 @@ struct SetupView: View {
     private func testDestination(at index: Int) {
         guard draftDestinations.indices.contains(index) else { return }
         let destination = draftDestinations[index]
-        guard !destination.host.isEmpty,
-              !destination.host.hasPrefix("-"),
-              destination.host.rangeOfCharacter(from: .whitespacesAndNewlines) == nil else {
+        guard DestinationFormat.isValidHost(destination.host) else {
             testStatus[index] = "Invalid address — use username@hostname or an SSH alias"
             return
         }
-        guard destination.remotePath == "~"
-                || destination.remotePath.hasPrefix("~/")
-                || destination.remotePath.hasPrefix("/") else {
-            testStatus[index] = "Invalid folder — use an absolute path or ~/folder"
+        guard DestinationFormat.isValidRemotePath(destination.remotePath) else {
+            testStatus[index] = "Invalid folder — use a dedicated folder such as ~/inbound or /srv/inbound"
             return
         }
         testStatus[index] = "Testing…"
         let targetExpression = remotePathExpression(destination.remotePath)
+        // New folders are private (umask 077). A folder other accounts can write to is refused: they
+        // could plant symlinks under names dotshot writes. One other accounts can read gets a warning.
         let remoteCommand = """
+        umask 077
         target=\(targetExpression)
         mkdir -p "$target" || exit 20
         test -d "$target" || exit 21
         test -w "$target" || exit 22
-        cd "$target" && pwd -P
+        test -O "$target" || exit 23
+        cd "$target" || exit 21
+        [ -z "$(find . -maxdepth 0 \\( -perm -g+w -o -perm -o+w \\) -print)" ] || exit 24
+        [ -z "$(find . -maxdepth 0 \\( -perm -g+r -o -perm -o+r \\) -print)" ] || echo dotshot-shared-folder
+        pwd -P
         """
 
         DispatchQueue.global(qos: .userInitiated).async {
@@ -1602,8 +1645,9 @@ struct SetupView: View {
             process.arguments = [
                 "-o", "BatchMode=yes",
                 "-o", "NumberOfPasswordPrompts=0",
+                "-o", "StrictHostKeyChecking=yes",
                 "-o", "ConnectTimeout=7",
-                destination.host,
+                "--", destination.host,
                 remoteCommand
             ]
             process.standardOutput = output
@@ -1618,11 +1662,19 @@ struct SetupView: View {
                     .split(whereSeparator: \.isNewline)
                     .map(String.init)
                     .last(where: { $0.hasPrefix("/") })
-                let result = destinationTestMessage(
+                var result = destinationTestMessage(
                     status: process.terminationStatus,
                     detail: detail,
                     resolvedPath: resolvedPath
                 )
+                if process.terminationStatus == 0, let resolvedPath {
+                    if !sftpWorks(host: destination.host, folder: resolvedPath) {
+                        result += ". SFTP is off, so dotshot sends over plain ssh instead"
+                    }
+                    if detail.contains("dotshot-shared-folder") {
+                        result += ". Other accounts there can read it; run chmod 700 on it for privacy"
+                    }
+                }
                 DispatchQueue.main.async {
                     guard draftDestinations.indices.contains(index),
                           draftDestinations[index].host == destination.host else { return }
@@ -1648,6 +1700,10 @@ struct SetupView: View {
             return "Folder invalid — the path exists but is not a directory"
         case 22:
             return "Folder read-only — choose a path this account can write to"
+        case 23:
+            return "Folder owned by another account — choose a folder this account owns"
+        case 24:
+            return "Folder shared — other accounts can write to it; use a private folder (chmod 700)"
         default:
             break
         }
@@ -1667,7 +1723,7 @@ struct SetupView: View {
             return "Key rejected — authorize this Mac’s public key on the destination"
         }
         if message.contains("host key verification failed") {
-            return "Identity check needed — connect once with ssh in Terminal"
+            return "Unknown host key — connect once with ssh in Terminal and check the fingerprint against the destination before accepting"
         }
         if message.contains("remote host identification has changed") {
             return "Host identity changed — review the warning in Terminal before continuing"
@@ -1678,16 +1734,26 @@ struct SetupView: View {
         return "Connection failed — try ssh \(detail.isEmpty ? "in Terminal for details" : "to this device in Terminal")"
     }
 
-    private func remotePathExpression(_ path: String) -> String {
-        if path == "~" { return "\"$HOME\"" }
-        if path.hasPrefix("~/") {
-            return "\"$HOME\"/" + shellSingleQuote(String(path.dropFirst(2)))
+    /// True when the destination accepts SFTP, which scp uses. Without it the script falls back to ssh.
+    private func sftpWorks(host: String, folder: String) -> Bool {
+        let process = Process()
+        let input = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/sftp")
+        process.arguments = ["-q", "-b", "-", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes",
+                             "-o", "ConnectTimeout=7", "--", host]
+        process.standardInput = input
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        do {
+            try process.run()
+            let quoted = "\"" + folder.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") + "\""
+            input.fileHandleForWriting.write("cd \(quoted)\n".data(using: .utf8)!)
+            try? input.fileHandleForWriting.close()
+            process.waitUntilExit()
+            return process.terminationStatus == 0
+        } catch {
+            return false
         }
-        return shellSingleQuote(path)
-    }
-
-    private func shellSingleQuote(_ value: String) -> String {
-        "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
     private func copyPublicKey() {

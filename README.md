@@ -146,6 +146,11 @@ error to `~/Shots/.dotshot.log`.
 open 'dotshot://image?dest=work'
 ```
 
+Links that start a recording ask for confirmation first, because any app or web
+page can open a link. Tick **Always allow links to start recordings** in that
+dialog if you trigger recordings from your own automation. A link naming a
+destination that doesn't exist is reported and captures nothing.
+
 ## Where things live
 
 | What | Where |
@@ -176,10 +181,15 @@ plus `scp` on purpose, so nothing new runs on your destinations.
 ## Privacy and security
 
 dotshot can read the screen only after you grant Screen Recording permission.
-Captures are saved locally and sent only to destinations you configure, using
-the system `scp` with key authentication. Password prompts are disabled and
-host-key checking stays on. dotshot has no analytics, no update service, and no
-network access of its own. See [SECURITY.md](SECURITY.md).
+Captures stay private on your Mac (`~/Shots`, mode 700) and go only to destinations
+you configure, over `scp` with key authentication, strict host-key checking, and no
+password prompts. Files arrive with private permissions, under safe unique names,
+and never overwrite anything. Names drop secret-looking words, and links that would
+start a recording ask first. dotshot has no analytics, accounts, or update checks.
+Once your agent opens a capture, the agent's model provider sees it.
+
+[SECURITY.md](SECURITY.md) traces every copy of a capture and explains the
+protections and the remaining risks, such as prompt injection from captured content.
 
 ## Development
 

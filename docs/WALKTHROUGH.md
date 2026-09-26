@@ -57,7 +57,9 @@ Add one row per machine:
 | Destination folder | `~/inbound` | Created if needed. Saved as an absolute path after a passing test. |
 
 **Test** checks the host, the key, and the folder separately and tells you which
-one failed and how to fix it. The first time through, at least one destination
+one failed and how to fix it. It creates the folder private to your account, refuses
+folders other accounts can write to, and warns if other accounts can read it. Use a
+folder of its own, not your home folder. The first time through, at least one destination
 has to pass before you can continue.
 
 ### 5. First Capture
@@ -127,7 +129,7 @@ out an area. Stop with `⌘⌃Esc`.
 When you stop, choose:
 
 - **Send** delivers the recording as it is.
-- **Trim** opens it in QuickTime; trim, save, then click **Send**.
+- **Trim** opens a trim window: drag the yellow handles, then click **Trim** to send the kept part. **Cancel** keeps the recording without sending it.
 - **Resize** shrinks it to 1280×720 before sending.
 - **Cancel** keeps it in `~/Shots` without sending.
 
@@ -135,9 +137,10 @@ When you stop, choose:
 
 ![Drop targets for four destinations](images/drop-targets.png)
 
-Drag any file onto the nub. It turns into one tile per destination; drop the
-file on a tile to send it there. Spaces in the file name become `-` so the path
-pastes cleanly into a prompt.
+Drag any file onto the nub. It turns into one tile per destination (up to six);
+drop the file on a tile to send it there. The file arrives under a safe name with a
+timestamp, such as `eval-results-run-42-20260926-103400.parquet`, so the path pastes
+cleanly into a prompt and never replaces an earlier file. Folders and links aren't sent.
 
 ### Automation
 

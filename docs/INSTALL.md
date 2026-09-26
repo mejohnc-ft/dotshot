@@ -54,14 +54,7 @@ older artifact, Gatekeeper blocks it the first time with a message such as
   4. Open dotshot again and click **Open**.
 
   On macOS 14 you can also Control-click dotshot in Applications, choose
-  **Open**, and confirm.
-
-  If you verified the checksum and prefer Terminal, removing the quarantine flag
-  does the same thing:
-
-  ```bash
-  xattr -dr com.apple.quarantine /Applications/dotshot.app
-  ```
+  **Open**, and confirm. Only do this for a build whose source you trust.
 
 ## Guided setup
 

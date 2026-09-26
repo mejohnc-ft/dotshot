@@ -46,7 +46,16 @@ do {
     expect(!DestinationFormat.isValidHost("john@my mac"), "host with space rejected")
     expect(!DestinationFormat.isValidHost(""), "empty host rejected")
 
-    expect(DestinationFormat.isValidRemotePath("~"), "~ allowed")
+    expect(!DestinationFormat.isValidRemotePath("~"), "home folder itself rejected")
+    expect(!DestinationFormat.isValidRemotePath("/"), "root rejected")
+    expect(!DestinationFormat.isValidRemotePath("~/a/../b"), ".. rejected")
+    expect(!DestinationFormat.isValidRemotePath("/srv/in\rbox"), "carriage return rejected")
+    expect(!DestinationFormat.isValidHost("host:2222"), "colon in host rejected")
+    expect(!DestinationFormat.isValidHost("host/x"), "slash in host rejected")
+    expect(DestinationFormat.isValidHost("dev@gpu-box.tailnet.ts.net"), "MagicDNS host")
+    expect(!DestinationFormat.isValidName("gpu;rm"), "name with punctuation rejected")
+    let messy = DestinationFormat.parse("a \tnas\t/x\r\nrel\tnas\tinbound\nbad\t-oProxyCommand=x\t/x\n")
+    expectEqual(messy, [Destination(id: "a", host: "nas", remotePath: "/x")], "CRLF and spaces trimmed; invalid rows skipped")
     expect(DestinationFormat.isValidRemotePath("~/inbound"), "~/ allowed")
     expect(DestinationFormat.isValidRemotePath("/srv/in bound"), "absolute with space allowed")
     expect(!DestinationFormat.isValidRemotePath("inbound"), "relative rejected")
@@ -89,9 +98,23 @@ do {
 do {
     let available = ["work", "nas"]
     expectEqual(resolveDestination(requested: "nas", saved: "work", available: available), "nas")
-    expectEqual(resolveDestination(requested: "missing", saved: "nas", available: available), "nas")
+    expectEqual(resolveDestination(requested: "missing", saved: "nas", available: available), nil, "unknown requested destination is an error, not a fallback")
     expectEqual(resolveDestination(requested: nil, saved: "gone", available: available), "work")
     expectEqual(resolveDestination(requested: "work", saved: nil, available: []), nil, "nothing configured")
+}
+
+// MARK: Capture script environment
+do {
+    let paths = Paths(home: "/Users/test", environment: [:])
+    let hostile = ["BASH_ENV": "/tmp/evil.sh", "PATH": "/Users/test/.local/bin:/usr/bin", "DOTSHOT_CONFIG": "/tmp/attacker.tsv",
+                   "DOTSHOT_TEST_BIN": "/tmp/stubs", "DYLD_INSERT_LIBRARIES": "/tmp/x.dylib", "SSH_AUTH_SOCK": "/tmp/agent", "USER": "test"]
+    let env = scriptEnvironment(paths: paths, inherited: hostile, namer: "rm -rf")
+    expectEqual(env["PATH"], "/usr/bin:/bin:/usr/sbin:/sbin", "fixed PATH")
+    expect(env["BASH_ENV"] == nil && env["DYLD_INSERT_LIBRARIES"] == nil && env["DOTSHOT_TEST_BIN"] == nil, "nothing hostile inherited")
+    expectEqual(env["DOTSHOT_CONFIG"], "/Users/test/Library/Application Support/dotshot/destinations.tsv", "config from the app's own paths")
+    expectEqual(env["SSH_AUTH_SOCK"], "/tmp/agent", "ssh agent passed through")
+    expect(env["DOTSHOT_NAMER"] == nil, "unknown namer ignored")
+    expectEqual(scriptEnvironment(paths: paths, inherited: [:], namer: "claude")["DOTSHOT_NAMER"], "claude")
 }
 
 // MARK: Drop grid
@@ -102,7 +125,13 @@ do {
     expectEqual(DropGrid.tileIndex(at: CGPoint(x: 300, y: 10), in: size, count: 2), 1)
     expectEqual(DropGrid.tileIndex(at: CGPoint(x: 10, y: 200), in: size, count: 3), 2, "third tile bottom-left")
     expectEqual(DropGrid.tileIndex(at: CGPoint(x: 300, y: 200), in: size, count: 3), nil, "empty fourth cell")
-    expectEqual(DropGrid.tileIndex(at: CGPoint(x: 300, y: 200), in: size, count: 9), 3, "capped at four tiles")
+    expectEqual(DropGrid.tileIndex(at: CGPoint(x: 300, y: 200), in: size, count: 4), 3, "four tiles in two columns")
+    expectEqual(DropGrid.columns(for: 5), 3, "five destinations use three columns")
+    expectEqual(DropGrid.tileIndex(at: CGPoint(x: 300, y: 200), in: size, count: 6), 5, "sixth tile bottom-right")
+    expectEqual(DropGrid.tileIndex(at: CGPoint(x: 300, y: 200), in: size, count: 5), nil, "empty sixth cell")
+    expectEqual(DropGrid.tileIndex(at: CGPoint(x: 300, y: 200), in: size, count: 9), 5, "capped at six tiles")
+    expect(developmentOverridesAllowed(bundleID: "com.mejohnc.dotshot.demo"), "demo builds honor overrides")
+    expect(!developmentOverridesAllowed(bundleID: "com.mejohnc.dotshot"), "release app ignores overrides")
     expectEqual(DropGrid.tileIndex(at: CGPoint(x: -5, y: 999), in: size, count: 4), 2, "out-of-bounds points clamp")
     expectEqual(DropGrid.tileIndex(at: CGPoint(x: 0, y: 0), in: size, count: 0), nil)
     expectEqual(DropGrid.rows(for: 3), 2)

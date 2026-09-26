@@ -71,6 +71,7 @@ compile "$MACOS/dotshot" "$ROOT"/Sources/dotshot/*.swift
 compile "$RESOURCES/panel" "$ROOT/Sources/helpers/panel.swift"
 compile "$RESOURCES/ocr-slug" "$ROOT/Sources/helpers/ocr-slug.swift"
 compile "$RESOURCES/avresize" "$ROOT/Sources/helpers/avresize.swift"
+compile "$RESOURCES/trim" "$ROOT/Sources/helpers/trim.swift"
 install -m 755 "$ROOT/scripts/dotshot-capture.sh" "$RESOURCES/dotshot-capture.sh"
 
 swiftc -O "$ROOT/scripts/make-icon.swift" -o "$BUILD_TMP/make-icon"
@@ -96,7 +97,7 @@ case "$SIGN" in
 esac
 
 # Sign inside-out: helpers first, then the bundle.
-for helper in panel ocr-slug avresize; do
+for helper in panel ocr-slug avresize trim; do
   codesign "${SIGN_FLAGS[@]}" --identifier "$BUNDLE_ID.$helper" "$RESOURCES/$helper"
 done
 codesign "${SIGN_FLAGS[@]}" --identifier "$BUNDLE_ID" "$APP"

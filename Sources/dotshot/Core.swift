@@ -13,6 +13,13 @@ enum Brand {
     }
 }
 
+/// Environment overrides (DOTSHOT_CONFIG_DIR, DOTSHOT_SHOTS_DIR, demo switches) are honored only by
+/// development builds. The released app ignores them, so another process can't relaunch dotshot with
+/// `open --env` to redirect captures to its own config or folder.
+func developmentOverridesAllowed(bundleID: String?) -> Bool {
+    bundleID != Brand.bundleID
+}
+
 /// Filesystem locations. Environment overrides exist for tests and documentation captures.
 struct Paths {
     let home: String
@@ -48,16 +55,18 @@ struct Destination: Identifiable, Equatable {
 enum DestinationFormat {
     static let header = "# name\tssh-host-or-alias\tremote-folder\n"
 
+    /// Parses destinations.tsv, skipping comments and rows the capture script would reject
+    /// (CRLF endings and stray spaces are tolerated), so the app never offers a destination that can't work.
     static func parse(_ text: String) -> [Destination] {
         text.split(whereSeparator: \.isNewline).compactMap { rawLine in
             let line = String(rawLine)
             guard !line.hasPrefix("#") else { return nil }
             let fields = line.components(separatedBy: "\t")
             guard fields.count >= 3 else { return nil }
-            let id = fields[0].trimmingCharacters(in: .whitespaces)
-            let host = fields[1].trimmingCharacters(in: .whitespaces)
-            let path = fields[2].trimmingCharacters(in: .whitespaces)
-            guard !id.isEmpty, !host.isEmpty, !path.isEmpty else { return nil }
+            let id = fields[0].trimmingCharacters(in: .whitespacesAndNewlines)
+            let host = fields[1].trimmingCharacters(in: .whitespacesAndNewlines)
+            let path = fields[2].trimmingCharacters(in: .whitespacesAndNewlines)
+            guard isValidName(id), isValidHost(host), isValidRemotePath(path) else { return nil }
             return Destination(id: id, host: host, remotePath: path)
         }
     }
@@ -66,18 +75,24 @@ enum DestinationFormat {
         header + destinations.map { "\($0.id)\t\($0.host)\t\($0.remotePath)" }.joined(separator: "\n") + "\n"
     }
 
+    /// `user@host`, a hostname or IP, or an ~/.ssh/config alias. No option-looking values, and no `:` or `/`,
+    /// which scp would read as a path separator.
     static func isValidHost(_ host: String) -> Bool {
-        !host.isEmpty && !host.hasPrefix("-") && host.rangeOfCharacter(from: .whitespacesAndNewlines) == nil
+        !host.hasPrefix("-") && host.range(of: #"^[A-Za-z0-9._%+@-]+$"#, options: .regularExpression) != nil
     }
 
+    /// An absolute folder or one under `~/`. The home folder itself and `/` are refused: dotshot writes
+    /// files there by name, and a folder of its own keeps captures away from dotfiles.
     static func isValidRemotePath(_ path: String) -> Bool {
-        path.rangeOfCharacter(from: .newlines) == nil
-            && !path.contains("\t")
-            && (path == "~" || path.hasPrefix("~/") || path.hasPrefix("/"))
+        guard path.rangeOfCharacter(from: .controlCharacters) == nil,
+              path.hasPrefix("~/") || path.hasPrefix("/") else { return false }
+        let trimmed = path.hasSuffix("/") ? String(path.dropLast()) : path
+        guard trimmed != "~", !trimmed.isEmpty else { return false }
+        return !path.components(separatedBy: "/").contains("..")
     }
 
     static func isValidName(_ name: String) -> Bool {
-        !name.isEmpty && name.rangeOfCharacter(from: .whitespacesAndNewlines) == nil
+        name.range(of: #"^[A-Za-z0-9._-]{1,32}$"#, options: .regularExpression) != nil
     }
 
     /// Trims every field and returns nil when any destination is invalid or names repeat.
@@ -133,18 +148,20 @@ func parseCaptureURL(_ url: URL, screenCount: Int) -> CaptureAction {
     }
 }
 
-/// Chooses a configured destination: the requested one if valid, then the saved one, then the first.
+/// Chooses a configured destination: the requested one, else the saved one, else the first.
+/// A requested destination that isn't configured resolves to nil rather than silently sending elsewhere.
 func resolveDestination(requested: String?, saved: String?, available: [String]) -> String? {
-    if let requested, available.contains(requested) { return requested }
+    if let requested { return available.contains(requested) ? requested : nil }
     if let saved, available.contains(saved) { return saved }
     return available.first
 }
 
-/// Drop targets: up to four destinations tiled in two columns (one full tile for a single destination).
+/// Drop targets: up to six destinations, one tile for a single destination, two columns for up to four,
+/// three columns for five or six.
 enum DropGrid {
-    static let maxTiles = 4
+    static let maxTiles = 6
 
-    static func columns(for count: Int) -> Int { count <= 1 ? 1 : 2 }
+    static func columns(for count: Int) -> Int { count <= 1 ? 1 : count <= 4 ? 2 : 3 }
     static func rows(for count: Int) -> Int {
         let tiles = min(max(count, 1), maxTiles)
         return (tiles + columns(for: tiles) - 1) / columns(for: tiles)
@@ -160,6 +177,25 @@ enum DropGrid {
         let index = row * columns + column
         return index < tiles ? index : nil
     }
+}
+
+/// The capture script's entire environment. dotshot holds Screen Recording permission and its children
+/// inherit it, so nothing from dotshot's own environment (BASH_ENV, PATH, DOTSHOT_* overrides) is passed on.
+func scriptEnvironment(paths: Paths, inherited: [String: String] = ProcessInfo.processInfo.environment,
+                       namer: String? = UserDefaults.standard.string(forKey: "dotshot.namer")) -> [String: String] {
+    var environment = [
+        "HOME": paths.home,
+        "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+        "LANG": "en_US.UTF-8",
+        "DOTSHOT_NOTIFY_STDOUT": "1",   // progress comes back on stdout, so notifications come from dotshot
+        "DOTSHOT_CONFIG": paths.destinationsFile,
+        "DOTSHOT_SHOTS_DIR": paths.shots,
+    ]
+    for key in ["USER", "LOGNAME", "TMPDIR", "SSH_AUTH_SOCK"] {
+        if let value = inherited[key] { environment[key] = value }
+    }
+    if let namer, ["claude", "codex"].contains(namer) { environment["DOTSHOT_NAMER"] = namer }
+    return environment
 }
 
 func shellSingleQuote(_ value: String) -> String {
