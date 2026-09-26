@@ -111,7 +111,9 @@ final class DestinationStore: ObservableObject {
 /// The destination captures go to: `requested` when configured, else the saved choice, else the first.
 /// Returns nil when nothing is configured.
 func currentDestination(_ requested: String? = nil) -> String? {
-    resolveDestination(
+    // destinations.tsv may have been edited outside the app (by hand, or by an agent using the script's `add`).
+    DestinationStore.shared.reload()
+    return resolveDestination(
         requested: requested,
         saved: UserDefaults.standard.string(forKey: "dotshot.dest"),
         available: DestinationStore.shared.items.map(\.id)

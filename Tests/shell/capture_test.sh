@@ -46,6 +46,10 @@ $record
 while [ "\$1" != "--" ]; do shift; done; shift 2
 HOME="\${STUB_REMOTE_HOME:-\$HOME}" /bin/sh -c "\$1"
 STUB
+cat > "$BIN/sftp" <<STUB
+#!/bin/bash
+$record
+STUB
 cat > "$BIN/osascript" <<STUB
 #!/bin/bash
 $record
@@ -348,6 +352,37 @@ export STUB_LOCATION="$LOC" STUB_CANCEL=1
 printf 'family video' > "$LOC/unrelated.mov"
 run video work
 check "cancelled region recording never grabs another file" bash -c "! grep -q '^scp' '$CALLS' && [ -f '$LOC/unrelated.mov' ]"
+
+# ── setup commands (list / add / check) ──────────────────────────────────────
+reset
+SETUP_CFG="$TW/setup.tsv"; rm -f "$SETUP_CFG"
+setup() { DOTSHOT_CONFIG="$SETUP_CFG" /bin/bash "$SCRIPT" "$@" >"$TW/stdout" 2>"$TW/stderr"; }
+setup add gpu dev@gpu-box '~/inbound'
+check "add saves a destination" equals "$(DOTSHOT_CONFIG="$SETUP_CFG" /bin/bash "$SCRIPT" list)" $'gpu\tdev@gpu-box\t~/inbound'
+setup add gpu dev@other '/srv/in/'
+check "add replaces a destination of the same name" equals "$(DOTSHOT_CONFIG="$SETUP_CFG" /bin/bash "$SCRIPT" list)" $'gpu\tdev@other\t/srv/in'
+setup add bad 'host:22' /tmp
+check "add rejects host:port" equals "$?" "2"
+setup add home spark '~'
+check "add rejects the bare home folder" equals "$?" "2"
+setup add 'a b' spark /tmp/x
+check "add rejects names with spaces" equals "$?" "2"
+
+mkdir -p "$TW/rhome"; export STUB_REMOTE_HOME="$TW/rhome"
+RHOME="$(cd "$TW/rhome" && pwd -P)"  # check reports the physical path (/private/var/…)
+setup add box john@studio '~/checked'
+setup check box
+check "check exits 0 for a working destination" equals "$?" "0"
+check "check reports the absolute folder" equals "$(cat "$TW/stdout")" "ok box john@studio:$RHOME/checked"
+check "check saves the absolute folder" contains "$(DOTSHOT_CONFIG="$SETUP_CFG" /bin/bash "$SCRIPT" list)" $'box\tjohn@studio\t'"$RHOME/checked"
+check "check creates a private folder" equals "$(stat -f %Lp "$TW/rhome/checked")" "700"
+chmod 777 "$TW/rhome/checked"
+setup check box
+check "check refuses a folder others can write to" contains "$(cat "$TW/stderr")" "other accounts can write to it"
+export STUB_SSH_FAIL=1
+setup check box
+check "check explains an unreachable host" contains "$(cat "$TW/stderr")" "timed out"
+unset STUB_SSH_FAIL STUB_REMOTE_HOME
 
 echo "$PASS/$((PASS + FAIL)) shell checks passed"
 [ "$FAIL" -eq 0 ]

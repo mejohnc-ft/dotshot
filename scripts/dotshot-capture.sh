@@ -5,6 +5,12 @@
 #   dotshot-capture.sh video <dest> [display]    display 1, 2, … records that screen; omitted = region UI
 #   dotshot-capture.sh send  <dest> <file>       deliver an existing file under a safe, unique name
 #
+# Setup commands (for people and agents; no GUI needed):
+#   dotshot-capture.sh list                          configured destinations, one per line
+#   dotshot-capture.sh add <name> <host> <folder>    validate and save a destination (replaces one of the same name)
+#   dotshot-capture.sh check <name>                  the setup Test: host, key, private folder, SFTP; prints the
+#                                                    absolute folder and exits non-zero with the reason on failure
+#
 # <dest> is a name from destinations.tsv (name<TAB>ssh-host-or-alias<TAB>remote-folder).
 #
 # Naming backend (DOTSHOT_NAMER, default local):
@@ -353,13 +359,80 @@ send_file() {
   deliver "$file" "$(safe_filename "$file")"
 }
 
+list_destinations() {
+  [ -f "$CONFIG_FILE" ] || return 0
+  awk -F '\t' '/^#/ { next } { sub(/\r$/, ""); if (NF >= 3) printf "%s\t%s\t%s\n", $1, $2, $3 }' "$CONFIG_FILE"
+}
+
+# Validates and saves a destination atomically, replacing any row with the same name.
+add_destination() {
+  local name="$1" host="$2" folder="$3" tmp
+  [[ "$name" =~ ^[A-Za-z0-9._-]{1,32}$ ]] || { echo "invalid name '$name': use letters, digits, '.', '_' or '-'" >&2; return 2; }
+  valid_host "$host" || { echo "invalid host '$host': use user@host, a hostname, or an ~/.ssh/config alias" >&2; return 2; }
+  valid_folder "$folder" || { echo "invalid folder '$folder': use a dedicated absolute folder or ~/folder, not ~ itself" >&2; return 2; }
+  mkdir -p "$(dirname "$CONFIG_FILE")" || return 1
+  tmp="$(mktemp "$CONFIG_FILE.XXXXXX")" || return 1
+  {
+    printf '# name\tssh-host-or-alias\tremote-folder\n'
+    list_destinations | awk -F '\t' -v n="$name" '$1 != n'
+    printf '%s\t%s\t%s\n' "$name" "$host" "${folder%/}"
+  } > "$tmp" && mv -f "$tmp" "$CONFIG_FILE" && echo "saved $name → $host:${folder%/}"
+}
+
+# The same checks as the setup Test in the app. Prints "ok <absolute folder>" and saves that folder.
+check_destination() {
+  local out status target
+  resolve_destination "$1" || { echo "unknown or invalid destination '$1'" >&2; return 2; }
+  # shellcheck disable=SC2088  # the ~ is expanded on the destination
+  case "$DEST_DIR" in "~/"*) target="\"\$HOME\"/$(q "${DEST_DIR#\~/}")" ;; *) target="$(q "$DEST_DIR")" ;; esac
+  out="$(ssh "${SSH_OPTS[@]}" -- "$DEST_SSH" "sh -c $(q "umask 077
+    target=$target
+    mkdir -p \"\$target\" || exit 20
+    test -d \"\$target\" || exit 21
+    test -w \"\$target\" || exit 22
+    test -O \"\$target\" || exit 23
+    cd \"\$target\" || exit 21
+    [ -z \"\$(find . -maxdepth 0 \\( -perm -g+w -o -perm -o+w \\) -print)\" ] || exit 24
+    [ -z \"\$(find . -maxdepth 0 \\( -perm -g+r -o -perm -o+r \\) -print)\" ] || echo dotshot-shared-folder
+    pwd -P")" 2>&1)"; status=$?
+  case "$status" in
+    0) ;;
+    20) echo "folder: could not be created with this account" >&2; return 1 ;;
+    21) echo "folder: exists but is not a directory" >&2; return 1 ;;
+    22) echo "folder: read-only for this account" >&2; return 1 ;;
+    23) echo "folder: owned by another account" >&2; return 1 ;;
+    24) echo "folder: other accounts can write to it; run chmod 700 on it" >&2; return 1 ;;
+    *)
+      case "$out" in
+        *"Host key verification failed"*) echo "host key: unknown; connect once with ssh in Terminal and compare the fingerprint" >&2 ;;
+        *"Permission denied"*|*"no supported authentication"*) echo "key: rejected; authorize this Mac's public key (ssh-copy-id $DEST_SSH)" >&2 ;;
+        *"Could not resolve"*|*"nodename nor servname"*) echo "host: not found" >&2 ;;
+        *"timed out"*) echo "host: timed out; is it online and on your tailnet?" >&2 ;;
+        *"Connection refused"*) echo "host: SSH is off" >&2 ;;
+        *) echo "connection failed: $out" >&2 ;;
+      esac
+      return 1 ;;
+  esac
+  local resolved; resolved="$(printf '%s\n' "$out" | grep '^/' | tail -1)"
+  case "$out" in *dotshot-shared-folder*) echo "warning: other accounts can read $resolved; run chmod 700 on it" >&2 ;; esac
+  if ! printf 'cd %s\n' "\"$resolved\"" | sftp -q -b - "${SSH_OPTS[@]}" -- "$DEST_SSH" >/dev/null 2>&1; then
+    echo "note: SFTP is off on $DEST_SSH; dotshot will send over plain ssh" >&2
+  fi
+  [ "$resolved" != "$DEST_DIR" ] && add_destination "$DEST_NAME" "$DEST_SSH" "$resolved" >/dev/null
+  echo "ok $DEST_NAME $DEST_SSH:$resolved"
+}
+
 main() {
   MODE="${1:-}"
   local dest="${2:-}"
   case "$MODE" in
+    list) list_destinations; return ;;
+    add) add_destination "${2:-}" "${3:-}" "${4:-}"; return ;;
+    check) check_destination "$dest"; return ;;
     image|video|send) ;;
     *)
       echo "usage: $(basename "$0") image|video|send <destination> [display|file]" >&2
+      echo "       $(basename "$0") list | add <name> <host> <folder> | check <name>" >&2
       return 2 ;;
   esac
   prepare_shots

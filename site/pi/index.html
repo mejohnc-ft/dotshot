@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>dotshot for Pi — dotshot</title>
+<meta name="description" content="Pi keeps its toolset small, and its read tool handles images as well as text. Run Pi on your GPU box or build machine, send a capture with dotshot, and paste the path.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Pi reads images with its read tool. Send it one from your Mac.">
+<meta property="og:description" content="Pi keeps its toolset small, and its read tool handles images as well as text. Run Pi on your GPU box or build machine, send a capture with dotshot, and paste the path.">
+<meta property="og:url" content="https://mejohnc-ft.github.io/dotshot/pi/">
+<meta property="og:image" content="https://mejohnc-ft.github.io/dotshot/images/guides/pi.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://mejohnc-ft.github.io/dotshot/images/guides/pi.jpg">
+<link rel="canonical" href="https://mejohnc-ft.github.io/dotshot/pi/">
+<meta name="theme-color" content="#002b36">
+<link rel="icon" href="../images/nub.png">
+<style>
+  :root {
+    --bg: #fdf6e3;
+    --bg-2: #f5eed8;
+    --card: #fffdf6;
+    --ink: #073642;
+    --ink-2: #3f5a61;
+    --muted: #5f7479;
+    --line: rgba(7, 54, 66, 0.14);
+    --accent: #8a6800;
+    --accent-fill: #b58900;
+    --accent-ink: #1b1500;
+    --code-bg: #eee6cc;
+    --hero-bg: #002b36;
+    --hero-ink: #fdf6e3;
+    --hero-muted: #a9bcbd;
+    --radius: 16px;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #00212b;
+      --bg-2: #002b36;
+      --card: #073642;
+      --ink: #eee8d5;
+      --ink-2: #c9c3ad;
+      --muted: #93a1a1;
+      --line: rgba(238, 232, 213, 0.13);
+      --accent: #e0b43c;
+      --accent-fill: #b58900;
+      --accent-ink: #1b1500;
+      --code-bg: #01313d;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #00212b; --bg-2: #002b36; --card: #073642; --ink: #eee8d5; --ink-2: #c9c3ad; --muted: #93a1a1;
+    --line: rgba(238, 232, 213, 0.13); --accent: #e0b43c; --code-bg: #01313d; color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 17px/1.6 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  img, video { max-width: 100%; display: block; }
+  a { color: var(--accent); text-underline-offset: 3px; }
+  a:focus-visible, button:focus-visible { outline: 3px solid var(--accent-fill); outline-offset: 3px; border-radius: 6px; }
+  code, kbd, pre { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  code { font-size: 0.88em; background: var(--code-bg); padding: 0.12em 0.4em; border-radius: 6px; word-break: break-word; }
+  kbd { font-size: 0.85em; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 6px; padding: 0.05em 0.4em; background: var(--card); white-space: nowrap; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding-inline: clamp(16px, 4vw, 40px); }
+  .eyebrow { font: 700 12px/1 ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); margin: 0 0 14px; }
+  h2 { font-size: clamp(28px, 4vw, 40px); line-height: 1.12; letter-spacing: -0.02em; margin: 0 0 14px; }
+  h3 { font-size: 19px; margin: 0 0 6px; letter-spacing: -0.01em; }
+  section { padding-block: clamp(56px, 9vw, 104px); }
+  .lede { color: var(--ink-2); font-size: clamp(17px, 2vw, 19px); max-width: 680px; margin: 0; }
+
+  /* nav + hero (always dark, matching the product) */
+  .hero {
+    background:
+      radial-gradient(900px 520px at 8% -10%, rgba(181, 137, 0, 0.28), transparent 60%),
+      radial-gradient(760px 520px at 100% 110%, rgba(42, 161, 152, 0.22), transparent 60%),
+      linear-gradient(165deg, #003440, #002029 60%, #001a22);
+    color: var(--hero-ink); padding-block: 0 clamp(48px, 8vw, 88px);
+  }
+  nav { display: flex; align-items: center; gap: 20px; padding-block: 20px; }
+  .brand { display: flex; align-items: center; gap: 10px; color: var(--hero-ink); text-decoration: none; font-weight: 700; font-size: 20px; letter-spacing: -0.02em; }
+  .brand .dot { width: 20px; height: 20px; border-radius: 50%; background: #b58900; box-shadow: 0 0 0 4px rgba(181, 137, 0, 0.3); }
+  nav .links { margin-left: auto; display: flex; gap: 22px; font-size: 15px; }
+  nav .links a { color: var(--hero-muted); text-decoration: none; }
+  nav .links a:hover { color: var(--hero-ink); }
+  .hero-grid { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: clamp(28px, 5vw, 64px); align-items: center; padding-top: clamp(24px, 5vw, 56px); }
+  .hero h1 { font-size: clamp(38px, 6vw, 64px); line-height: 1.02; letter-spacing: -0.035em; margin: 0 0 20px; }
+  .hero h1 span { color: #e0b43c; }
+  .hero p { color: var(--hero-muted); font-size: clamp(17px, 2vw, 20px); margin: 0 0 28px; max-width: 520px; }
+  .hero p strong { color: var(--hero-ink); font-weight: 600; }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .button {
+    display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 650; font-size: 16px;
+    padding: 13px 20px; border-radius: 12px; background: #b58900; color: #1b1500;
+    box-shadow: 0 10px 24px rgba(181, 137, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  }
+  .button:hover { background: #c99a0c; }
+  .button.ghost { background: transparent; color: var(--hero-ink); box-shadow: inset 0 0 0 1px rgba(238, 232, 213, 0.28); }
+  .button.ghost:hover { background: rgba(238, 232, 213, 0.08); }
+  .meta { margin-top: 18px; font-size: 14px; color: var(--hero-muted); }
+  .meta code { background: rgba(238, 232, 213, 0.1); color: var(--hero-ink); }
+  .demo { border-radius: 14px; overflow: hidden; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(238, 232, 213, 0.12); background: #001820; aspect-ratio: 16 / 9; }
+  .demo video, .demo img { width: 100%; height: 100%; object-fit: cover; }
+
+  /* intro video */
+  .intro { background: #001a22; color: var(--hero-ink); padding-block: clamp(48px, 7vw, 88px); }
+  .intro .lede { color: var(--hero-muted); }
+  .intro .eyebrow { color: #e0b43c; }
+  .film { margin-top: 32px; border-radius: 16px; overflow: hidden; background: #000; aspect-ratio: 16 / 9; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(238, 232, 213, 0.12); }
+  .film video { width: 100%; height: 100%; }
+  .chapters { display: flex; flex-wrap: wrap; gap: 8px 10px; margin-top: 16px; padding: 0; list-style: none; }
+  .chapters button { font: 600 13px/1 ui-monospace, "SF Mono", Menlo, monospace; color: var(--hero-ink); background: rgba(238, 232, 213, 0.08); border: 1px solid rgba(238, 232, 213, 0.16); padding: 8px 12px; border-radius: 999px; cursor: pointer; }
+  .chapters button:hover { border-color: #e0b43c; color: #e0b43c; }
+  .chapters span { color: #e0b43c; margin-right: 6px; }
+
+  .guide-card { text-decoration: none; color: inherit; display: block; }
+  .guide-card:hover { border-color: var(--accent-fill); }
+
+  /* comparison */
+  .compare td:first-child { font-weight: 650; white-space: nowrap; }
+  .compare td.yes { color: var(--accent); font-weight: 700; }
+
+  /* how it works */
+  .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 40px; counter-reset: step; }
+  .step { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; }
+  .step::before {
+    counter-increment: step; content: counter(step);
+    display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
+    background: var(--accent-fill); color: var(--accent-ink); font-weight: 700; font-size: 14px; margin-bottom: 16px;
+  }
+  .step p { margin: 0; color: var(--ink-2); font-size: 16px; }
+  .path-demo { margin-top: 28px; background: #0b1419; color: #c9d1d9; border-radius: 12px; padding: 16px 18px; font: 14px/1.6 ui-monospace, "SF Mono", Menlo, monospace; overflow-x: auto; white-space: nowrap; }
+  .path-demo .p { color: #fdf6e3; background: rgba(181, 137, 0, 0.3); border-radius: 4px; padding: 0 4px; }
+  .path-demo .g { color: #e0b43c; }
+
+  /* features */
+  .alt { background: var(--bg-2); }
+  .features { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 40px; }
+  .feature { padding: 22px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--card); }
+  .feature p { margin: 0; color: var(--ink-2); font-size: 15.5px; }
+  .feature .icon { font-size: 22px; margin-bottom: 10px; display: block; }
+  .shots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 36px; }
+  figure { margin: 0; }
+  figure img { border-radius: 14px; border: 1px solid var(--line); width: 100%; height: auto; }
+  figcaption { font-size: 14px; color: var(--muted); margin-top: 8px; }
+
+  /* setup */
+  .setup-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr); gap: clamp(28px, 5vw, 56px); align-items: start; margin-top: 40px; }
+  ol.guide { list-style: none; margin: 0; padding: 0; counter-reset: guide; }
+  ol.guide > li { position: relative; padding: 0 0 26px 52px; counter-increment: guide; }
+  ol.guide > li::before {
+    content: counter(guide); position: absolute; left: 0; top: -2px; width: 34px; height: 34px; border-radius: 50%;
+    display: grid; place-items: center; font-weight: 700; font-size: 15px;
+    border: 2px solid var(--accent-fill); color: var(--accent);
+  }
+  ol.guide > li:not(:last-child)::after { content: ""; position: absolute; left: 16px; top: 38px; bottom: 6px; width: 2px; background: var(--line); }
+  ol.guide p { margin: 4px 0 8px; color: var(--ink-2); font-size: 16px; }
+  ol.guide ul { margin: 6px 0 8px; padding-left: 20px; color: var(--ink-2); font-size: 16px; }
+  pre { background: var(--code-bg); border-radius: 10px; padding: 12px 14px; overflow-x: auto; font-size: 14px; line-height: 1.55; margin: 8px 0; }
+  pre code { background: none; padding: 0; font-size: inherit; word-break: normal; }
+  .note { font-size: 14.5px; border-left: 3px solid var(--accent-fill); padding: 8px 12px; background: var(--card); border-radius: 0 8px 8px 0; color: var(--ink-2); margin: 8px 0; }
+  .sticky { position: sticky; top: 24px; display: grid; gap: 18px; }
+
+  /* table */
+  .table-wrap { overflow-x: auto; margin-top: 28px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); }
+  table { border-collapse: collapse; width: 100%; font-size: 15.5px; min-width: 560px; }
+  th, td { text-align: left; padding: 13px 18px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  tr:last-child td { border-bottom: 0; }
+
+  /* privacy + faq */
+  .privacy { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 40px; margin: 32px 0 0; padding: 0; list-style: none; }
+  .privacy li { padding-left: 30px; position: relative; color: var(--ink-2); }
+  .privacy li::before { content: "✓"; position: absolute; left: 0; color: var(--accent); font-weight: 700; }
+  details { border-bottom: 1px solid var(--line); padding: 16px 0; }
+  details:first-of-type { border-top: 1px solid var(--line); margin-top: 32px; }
+  summary { cursor: pointer; font-weight: 650; font-size: 18px; list-style: none; display: flex; justify-content: space-between; gap: 16px; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: "+"; color: var(--accent); font-weight: 400; font-size: 24px; line-height: 1; }
+  details[open] summary::after { content: "–"; }
+  details p { color: var(--ink-2); margin: 10px 0 0; max-width: 760px; }
+
+  footer { border-top: 1px solid var(--line); padding-block: 36px; color: var(--muted); font-size: 15px; }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; }
+  footer .spacer { flex: 1; }
+
+  @media (max-width: 900px) {
+    .hero-grid, .setup-grid { grid-template-columns: minmax(0, 1fr); }
+    .steps, .features { grid-template-columns: minmax(0, 1fr); }
+    .shots, .privacy { grid-template-columns: minmax(0, 1fr); }
+    .sticky { position: static; }
+    nav .links a.optional { display: none; }
+  }
+  @media (max-width: 480px) {
+    nav .links { gap: 14px; font-size: 14px; }
+    .button { width: 100%; justify-content: center; }
+  }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+</style>
+<style>
+  .guide-hero-img { border-radius: 16px; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,.55), 0 0 0 1px rgba(238,232,213,.12); }
+  .guide-hero-img img { width: 100%; height: auto; }
+  .uses { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 36px; }
+  .uses .feature p { margin: 0; }
+  .crumbs { font-size: 14px; }
+  .crumbs a { color: var(--hero-muted); }
+  .others { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+  .others a { text-decoration: none; padding: 9px 14px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink); background: var(--card); font-weight: 600; font-size: 15px; }
+  .others a:hover { border-color: var(--accent-fill); }
+  .notes { margin: 20px 0 0; padding-left: 20px; color: var(--ink-2); }
+  .notes li { margin: 6px 0; }
+  @media (max-width: 900px) { .uses { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <nav aria-label="Primary">
+      <a class="brand" href="../"><span class="dot" aria-hidden="true"></span>dotshot</a>
+      <div class="links">
+        <a href="../#intro" class="optional">Intro</a>
+        <a href="../#setup">Setup</a>
+        <a href="https://github.com/mejohnc-ft/dotshot">GitHub</a>
+      </div>
+    </nav>
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow" style="color:#e0b43c">dotshot for Pi</p>
+        <h1>Pi reads images with its read tool. Send it one from your Mac.</h1>
+        <p>Pi keeps its toolset small, and its read tool handles images as well as text. Run Pi on your GPU box or build machine, send a capture with dotshot, and paste the path.</p>
+        <div class="cta">
+          <a class="button" href="https://github.com/mejohnc-ft/dotshot/releases/latest">Download for Mac</a>
+          <a class="button ghost" href="#setup">Set it up</a>
+        </div>
+        <div class="meta">Free and open source · Notarized by Apple · macOS 14+</div>
+      </div>
+      <div class="guide-hero-img"><img src="../images/guides/pi.jpg" alt="The dotshot fleet: captures delivered to four machines, each with its path shown" width="1280" height="720"></div>
+    </div>
+  </div>
+</header>
+<main>
+  <section>
+    <div class="wrap">
+      <p class="eyebrow">What people send</p>
+      <h2>How it works with Pi</h2>
+      <div class="uses"><div class="feature"><h3>Paste the path</h3><p>Ask about the capture and paste its path. Pi's read tool opens the image.</p></div><div class="feature"><h3>Recordings</h3><p>Pi reads frames, not video. Ask it to extract a few with <code>ffmpeg</code> first.</p></div><div class="feature"><h3>Files</h3><p>Logs, traces, and datasets dropped on the nub arrive in the same folder, ready for Pi's read, grep, and find.</p></div></div>
+    </div>
+  </section>
+  <section class="alt" id="setup">
+    <div class="wrap">
+      <p class="eyebrow">Set it up</p>
+      <h2>Five minutes, nothing to install over there.</h2>
+      
+  <ol class="guide">
+    <li><h3>Install dotshot on your Mac</h3><p>Download the notarized DMG from <a href="https://github.com/mejohnc-ft/dotshot/releases/latest">GitHub Releases</a> and allow Screen Recording in its setup. Nothing gets installed on the other machine.</p></li>
+    <li><h3>Make sure this Mac can reach it with a key</h3><pre><code>ssh -o BatchMode=yes dev@build-box true &amp;&amp; echo ready</code></pre><p>No key there yet? Run <code>ssh-copy-id dev@build-box</code> once. Tailscale names and <code>~/.ssh/config</code> aliases (including ones with a <code>ProxyCommand</code>) work, because dotshot uses your SSH configuration.</p></li>
+    <li><h3>Add it as a destination</h3><p>In setup, or from Terminal (or let your agent do it with the <a href="https://github.com/mejohnc-ft/dotshot/blob/main/docs/AGENTS.md">setup skill</a>):</p><pre><code>DS=/Applications/dotshot.app/Contents/Resources/dotshot-capture.sh
+"$DS" add build dev@build-box '~/inbound'
+"$DS" check build</code></pre><p><code>check</code> creates a private folder, verifies the key and SFTP, and saves the absolute path your agent will see.</p></li>
+    <li><h3>Capture</h3><p>Press <kbd>⌃⌥⌘S</kbd> and drag, or <kbd>⌃⌥⌘V</kbd> to record. The file lands on the machine and its absolute path is on your clipboard.</p></li>
+  </ol>
+      <h3 style="margin-top:28px">Let agents there find what you sent</h3><p class="lede" style="font-size:16px">Add the inbox instructions wherever Pi loads project context on that machine.</p><pre><code># Give Pi the dotshot inbox instructions on the destination machine
+curl -fsSL https://raw.githubusercontent.com/mejohnc-ft/dotshot/main/skills/dotshot-inbox/SKILL.md &gt;&gt; AGENTS.md</code></pre>
+      <ul class="notes"><li>Pi works with many model providers; image understanding needs a model that accepts images.</li><li>Using Pi on your Mac? Ask it to follow the <a href="https://github.com/mejohnc-ft/dotshot/blob/main/skills/dotshot-setup/SKILL.md">setup skill</a> to configure dotshot.</li></ul>
+    </div>
+  </section>
+  <section>
+    <div class="wrap">
+      <p class="eyebrow">Also works with</p>
+      <h2>One shortcut for the whole fleet.</h2>
+      <p class="lede">Every guide uses the same app: add each machine once, then switch from the pill, a drop tile, or a <code>dotshot://</code> link.</p>
+      <div class="others"><a href="../spark/">DGX Spark</a><a href="../rocm/">ROCm</a><a href="../mac/">Remote Macs</a><a href="../claude/">Claude Code</a><a href="../codex/">Codex</a><a href="../">Overview</a></div>
+    </div>
+  </section>
+</main>
+<footer>
+  <div class="wrap">
+    <a class="brand" href="../" style="color: var(--ink); font-size: 17px;"><span class="dot" aria-hidden="true"></span>dotshot</a>
+    <span class="spacer"></span>
+    <a href="https://github.com/mejohnc-ft/dotshot">GitHub</a>
+    <a href="https://github.com/mejohnc-ft/dotshot/blob/main/SECURITY.md">Security</a>
+    <a href="https://github.com/mejohnc-ft/dotshot/blob/main/docs/AGENTS.md">Set up with an agent</a>
+  </div>
+</footer>
+</body>
+</html>

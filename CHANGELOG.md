@@ -14,6 +14,9 @@ First public release. **Shot Pill is now dotshot.**
 - `dotshot://setup?step=<name>` opens setup at a specific step
 - **Check Again** button for the Screen Recording permission step
 - Setup opens automatically when a capture is triggered with no destination configured
+- `list`, `add`, and `check` commands in the bundled script, so people and agents can configure and verify destinations without the GUI; the app picks up changes before the next capture
+- Agent skills: `dotshot-setup` (configure dotshot from your Mac's agent) and `dotshot-inbox` (help agents on each machine find and read what you sent)
+- Guide pages for DGX Spark, ROCm, remote Macs, Claude Code, Codex, and Pi, plus `llms.txt` for agents
 - Automated tests for the core logic and the capture script, an optional end-to-end SSH delivery test, and shellcheck in CI
 - Release workflow that signs and notarizes when credentials are configured and drafts a GitHub Release
 - Install, troubleshooting, QA, and release documentation, a screen-by-screen walkthrough, new screenshots, a demo loop, and a 80-second intro video

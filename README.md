@@ -164,6 +164,20 @@ destination that doesn't exist is reported and captures nothing.
 or alias, remote folder). You can edit it by hand. See
 [`config/destinations.example.tsv`](config/destinations.example.tsv).
 
+## Guides and agents
+
+- Machines: [DGX Spark](https://mejohnc-ft.github.io/dotshot/spark/) · [ROCm](https://mejohnc-ft.github.io/dotshot/rocm/) · [Remote Macs and macOS VMs](https://mejohnc-ft.github.io/dotshot/mac/)
+- Agents: [Claude Code](https://mejohnc-ft.github.io/dotshot/claude/) · [Codex](https://mejohnc-ft.github.io/dotshot/codex/) · [Pi](https://mejohnc-ft.github.io/dotshot/pi/)
+- **Let your agent set it up:** [docs/AGENTS.md](docs/AGENTS.md). The [`dotshot-setup`](skills/dotshot-setup/SKILL.md) skill configures and checks destinations from the command line, and [`dotshot-inbox`](skills/dotshot-inbox/SKILL.md) helps agents on each machine find and read what you sent.
+
+The script inside the app also works from Terminal:
+
+```bash
+DS=/Applications/dotshot.app/Contents/Resources/dotshot-capture.sh
+"$DS" add spark spark '~/inbound' && "$DS" check spark    # validate, create a private folder, save the absolute path
+"$DS" send spark ./notes.txt                              # deliver a file; the remote path is on your clipboard
+```
+
 ## How it compares
 
 Other tools solve part of this, and one of them may suit you better:

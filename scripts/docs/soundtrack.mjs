@@ -88,7 +88,7 @@ for (let t = score ? Math.min(...score.arp.map(([a]) => a)) : S.s3, n = 0; t < (
   const m = chord[ARP[n % 8] % chord.length] + 12;
   const f = hz(m);
   const accent = n % 8 === 0 ? 1 : n % 2 === 0 ? 0.8 : 0.62;
-  const build = score ? 0.6 : t < S.s4 ? 0.75 : 1;  // a little more energy after the first capture lands
+  const build = score ? 0.8 : t < S.s4 ? 0.75 : 1;  // a little more energy after the first capture lands
   add(music, t, 1.2, n % 2 ? 0.35 : -0.35, (x) =>
     0.05 * accent * build * Math.min(1, x / 0.004) * Math.exp(-x * 5.5) * (Math.sin(TAU * f * x) + (0.3 * Math.sin(TAU * 2 * f * x) + 0.12 * Math.sin(TAU * 3 * f * x)) * Math.exp(-x * 12)));
 }
@@ -163,15 +163,24 @@ const SOUND = {
   },
   whoosh(at) {
     let y = 0;
-    add(sfx, at, 1.0, 0, (t) => {
-      const fc = 200 + 3800 * Math.pow(t / 1.0, 1.6), a = 1 - Math.exp(-TAU * fc / SR);
+    add(sfx, at, 0.5, 0, (t) => {
+      const fc = 600 + 5000 * Math.pow(t / 0.5, 1.4), a = 1 - Math.exp(-TAU * fc / SR);
       y += a * (rand() - y);
-      return 0.12 * Math.sin(Math.PI * Math.min(1, t / 1.0)) ** 1.5 * y;
+      return 0.07 * Math.sin(Math.PI * Math.min(1, t / 0.5)) ** 1.5 * y;
     });
   },
   trail(at) {
     add(sfx, at, 1.3, 0.2, (t) => 0.06 * Math.sin(Math.PI * Math.min(1, t / 1.3)) * Math.sin(TAU * (320 * t + 520 * t * t)));
     add(sfx, at, 1.3, -0.2, (t) => 0.025 * Math.sin(Math.PI * Math.min(1, t / 1.3)) * Math.sin(TAU * (640 * t + 1040 * t * t)));
+  },
+  swell(at) {
+    [74, 81, 86].forEach((m, k) => add(sfx, at + k * 0.18, 3.2, (k - 1) * 0.4, (x) => 0.03 * Math.sin(Math.PI * Math.min(1, x / 3.2)) * Math.sin(TAU * hz(m) * x)));
+  },
+  pluck(at) {
+    add(sfx, at, 0.8, 0, (x) => 0.07 * Math.min(1, x / 0.003) * Math.exp(-x * 7) * (Math.sin(TAU * hz(81) * x) + 0.3 * Math.sin(TAU * hz(93) * x)));
+  },
+  zip(at) {
+    [78, 81, 86, 90, 93].forEach((m, k) => add(sfx, at + k * 0.055, 0.5, (k - 2) * 0.25, (x) => 0.04 * Math.min(1, x / 0.003) * Math.exp(-x * 9) * Math.sin(TAU * hz(m) * x)));
   },
   bell(at) {
     [[hz(74), 0, 0], [hz(81), 0.16, 0.25], [hz(86), 0.32, -0.25]].forEach(([f, d, pan]) =>

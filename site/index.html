@@ -124,6 +124,9 @@
   .chapters button:hover { border-color: #e0b43c; color: #e0b43c; }
   .chapters span { color: #e0b43c; margin-right: 6px; }
 
+  .guide-card { text-decoration: none; color: inherit; display: block; }
+  .guide-card:hover { border-color: var(--accent-fill); }
+
   /* comparison */
   .compare td:first-child { font-weight: 650; white-space: nowrap; }
   .compare td.yes { color: var(--accent); font-weight: 700; }
@@ -215,6 +218,7 @@
       <div class="links">
         <a href="#intro" class="optional">Intro</a>
         <a href="#how" class="optional">How it works</a>
+        <a href="#guides" class="optional">Guides</a>
         <a href="#setup">Setup</a>
         <a href="#faq" class="optional">FAQ</a>
         <a href="https://github.com/mejohnc-ft/dotshot">GitHub</a>
@@ -317,7 +321,24 @@
     </div>
   </section>
 
-  <section id="compare">
+  <section id="guides">
+    <div class="wrap">
+      <p class="eyebrow">Works with your setup</p>
+      <h2>Guides for your machines and your agents.</h2>
+      <p class="lede">The same app works for every machine and every agent. These pages cover what to send and the setup details for each.</p>
+      <div class="features">
+        <a class="feature guide-card" href="spark/"><h3>DGX Spark</h3><p>Loss curves, notebook errors, and eval files to the agent on your Spark.</p></a>
+        <a class="feature guide-card" href="rocm/"><h3>ROCm</h3><p>Profiler tables and HIP errors to your Radeon or Instinct box.</p></a>
+        <a class="feature guide-card" href="mac/"><h3>Remote Macs</h3><p>MLX runs, Xcode builds, and macOS VMs.</p></a>
+        <a class="feature guide-card" href="claude/"><h3>Claude Code</h3><p>Pasting images doesn't work over SSH. A path does.</p></a>
+        <a class="feature guide-card" href="codex/"><h3>Codex</h3><p>Paste the path, and Codex views it with <code>view_image</code> or <code>--image</code>.</p></a>
+        <a class="feature guide-card" href="pi/"><h3>Pi</h3><p>Pi's read tool reads images. Send it one.</p></a>
+      </div>
+      <p class="lede" style="margin-top:22px;font-size:16px">Prefer your agent to do the setup? It can: <a href="https://github.com/mejohnc-ft/dotshot/blob/main/docs/AGENTS.md">Set up dotshot with your agent</a>.</p>
+    </div>
+  </section>
+
+  <section id="compare" class="alt">
     <div class="wrap">
       <p class="eyebrow">How it compares</p>
       <h2>Other tools do part of this.</h2>
@@ -340,7 +361,7 @@
     </div>
   </section>
 
-  <section class="alt" id="setup">
+  <section id="setup">
     <div class="wrap">
       <p class="eyebrow">Get set up in 5 minutes</p>
       <h2>From download to your first delivered path.</h2>
@@ -403,7 +424,7 @@
     </div>
   </section>
 
-  <section id="automation">
+  <section class="alt" id="automation">
     <div class="wrap">
       <p class="eyebrow">Automation</p>
       <h2>Trigger captures from anything.</h2>
@@ -425,7 +446,7 @@
     </div>
   </section>
 
-  <section class="alt" id="privacy">
+  <section id="privacy">
     <div class="wrap">
       <p class="eyebrow">Privacy</p>
       <h2>Your screen stays between your machines.</h2>
@@ -444,7 +465,7 @@
     </div>
   </section>
 
-  <section id="faq">
+  <section class="alt" id="faq">
     <div class="wrap">
       <p class="eyebrow">FAQ</p>
       <h2>Questions</h2>

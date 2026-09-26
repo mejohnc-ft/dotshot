@@ -389,43 +389,44 @@
     $("overlay").style.opacity = 1;
   }
 
-  window.DURATION = 62;
+  // The scene is authored on a 62 s clock and played SPEED× faster; cues and score are scaled to match.
+  const SPEED = 1.22;
+  window.DURATION = +(62 / SPEED).toFixed(2);
   window.STYLE = "cinematic";
   window.render = (t) => {
-    T = t;
+    T = t * SPEED;
     renderWorld();
     renderOverlay();
     drawGrain(Math.floor(t * 4));  // grain changes 4× a second: film texture without wrecking compression
-    document.body.style.opacity = Math.min(1, t / 0.6) * (1 - span(61.0, 62));
+    document.body.style.opacity = Math.min(1, t / 0.5) * (1 - span(61.0, 62));
   };
 
   // Sound cues (seconds) for soundtrack.mjs, and the score it plays.
   const CUES = [
-    [0.4, "boom"], [4.4, "whoosh"], [5.0, "impact"], [5.35, "impact"], [5.7, "impact"], [6.05, "impact"],
-    [7.6, "whoosh"], [9.9, "whoosh"], [12.2, "whoosh"], [14.5, "whoosh"], [17.0, "whoosh"],
-    ...[0, 1, 2, 3, 4].map((i) => [18.6 + i * 0.55, "tick"]), [21.7, "swish"], [23.4, "boom"], [23.45, "key"],
-    [25.8, "whoosh"],
+    [0.4, "swell"], [4.6, "whoosh"], [5.0, "pluck"], [5.35, "pluck"], [5.7, "pluck"], [6.05, "pluck"],
+    [7.8, "tick"], [10.1, "tick"], [12.4, "tick"], [14.7, "tick"],
+    ...[0, 1, 2, 3, 4].map((i) => [18.6 + i * 0.55, "tick"]), [21.7, "swish"], [23.4, "impact"], [23.45, "key"],
     ...SENDS.flatMap((s, k) => {
       const hero = k === 0, selStart = s.at + (hero ? 0.6 : 0.1), shot = selStart + (hero ? 1.2 : 0.5) + 0.05, arrive = s.fly + (hero ? 1.25 : 0.8);
-      return [[selStart, "press"], [shot, s.rec ? "rec" : "shutter"], [s.fly, "trail"], [arrive, "sent"]];
+      return [[selStart, "press"], [shot, s.rec ? "rec" : "shutter"], [s.fly, "zip"], [arrive, "sent"]];
     }),
-    [46.4, "whoosh"], [47.2, "impact"], [48.0, "impact"], [48.8, "impact"],
+    [47.2, "pluck"], [48.0, "pluck"], [48.8, "pluck"],
     ...[0, 1, 2, 3].map((i) => [53.4 + i * 0.45, "tick"]), [58.3, "bell"],
   ];
-  window.SOUNDS = CUES.map(([t, kind]) => ({ t, kind })).sort((a, b) => a.t - b.t);
-  window.SECTIONS = { s1: 0, s2: 4.4, s3: 25.8, s4: 34.4, s7: 58.3 };
-  // A darker score than the UI cut: D minor, slower, a sub pulse under the deliveries.
+  window.SOUNDS = CUES.map(([t, kind]) => ({ t: +(t / SPEED).toFixed(3), kind })).sort((a, b) => a.t - b.t);
+  window.SECTIONS = Object.fromEntries(Object.entries({ s1: 0, s2: 4.4, s3: 25.8, s4: 34.4, s7: 58.3 }).map(([k, v]) => [k, +(v / SPEED).toFixed(3)]));
+  // A brighter score than the first draft: D major, D–A–Bm–G, a light pulse and an arpeggio through the deliveries.
+  const D = [38, 50, 57, 62, 66], A = [33, 49, 57, 61, 64], Bm = [35, 50, 54, 59, 62], G = [31, 50, 55, 59, 62];
+  const LOOP = [D, A, Bm, G];
+  const chords = [[0, [38, 50, 57, 64]], [4.4, D], [7.6, A], [10.8, Bm], [14.0, G],
+    [17.4, [40, 52, 55, 59, 62]], [20.6, [33, 49, 55, 57, 64]], [23.4, D]];
+  for (let t = 25.8, i = 0; t < 58.2; t += 3.2, i++) chords.push([t, LOOP[i % 4]]);
+  chords.push([58.3, [38, 50, 57, 61, 64, 66]]);
   window.SCORE = {
-    bar: 3.2,
-    chords: [
-      [0, [38, 50, 57, 64]], [4.4, [38, 50, 57, 62, 65]], [7.6, [34, 46, 53, 58, 62]], [10.8, [41, 53, 57, 60, 65]], [14.0, [36, 48, 55, 60, 64]],
-      [17.4, [34, 46, 53, 57, 62]], [20.6, [33, 45, 52, 57, 61]], [23.4, [38, 50, 57, 62, 65]],
-      [25.8, [38, 50, 57, 62, 65]], [29.0, [34, 46, 53, 58, 62]], [32.2, [41, 53, 57, 60, 65]], [35.4, [36, 48, 55, 60, 64]],
-      [38.6, [38, 50, 57, 62, 65]], [41.8, [34, 46, 53, 58, 62]], [45.0, [41, 53, 57, 60, 65]], [48.2, [36, 48, 55, 60, 64]],
-      [51.4, [34, 46, 53, 58, 62]], [54.6, [36, 48, 55, 60, 64]], [58.3, [38, 50, 57, 62, 64, 69]],
-    ],
-    pulse: [[25.8, 46.4], [47.0, 58.0]],
-    arp: [[30.4, 46.4]],
+    bar: 3.2 / SPEED,
+    chords: chords.map(([t, notes]) => [+(t / SPEED).toFixed(3), notes]),
+    pulse: [[25.8, 46.4], [47.0, 58.0]].map(([a, b]) => [a / SPEED, b / SPEED]),
+    arp: [[4.4, 17.4], [25.8, 58.3]].map(([a, b]) => [a / SPEED, b / SPEED]),
   };
   window.render(parseFloat((location.hash.match(/t=([\d.]+)/) || [0, "0"])[1]));
 </script>

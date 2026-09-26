@@ -14,7 +14,7 @@ STYLE=""
 if [ "${1:-}" = "--style" ]; then STYLE="-$2"; shift 2; fi
 # Poster frame and README thumbnail label for each cut.
 case "$STYLE" in
-  -cinematic) CRF=23; POSTER_AT=32.2; THUMB_TITLE="Watch the 60-second film"; THUMB_SUB="Spark cluster · ROCm cluster · Dev Mac · NAS" ;;
+  -cinematic) CRF=23; POSTER_AT=26.4; THUMB_TITLE="Watch the 50-second film"; THUMB_SUB="Spark cluster · ROCm cluster · Dev Mac · NAS" ;;
   *)          CRF=18; POSTER_AT=29.9; THUMB_TITLE="Watch the 80-second intro"; THUMB_SUB="Spark cluster · ROCm cluster · Dev Mac · NAS" ;;
 esac
 
