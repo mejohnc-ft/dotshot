@@ -25,7 +25,7 @@ swiftc -O "$ROOT/scripts/docs/window-ids.swift" -o "$WORK/window-ids"
 printf '# name\tssh-host-or-alias\tremote-folder\nspark\tdev@spark-cluster\t/home/dev/inbound\nrocm\tdev@rocm-cluster\t/home/dev/inbound\nmac\tdev@dev-mac.local\t/Users/dev/inbound\nnas\tadmin@nas\t/srv/inbound\n' \
   > "$WORK/config/destinations.tsv"
 defaults delete "$DEMO_ID" >/dev/null 2>&1 || true
-defaults write "$DEMO_ID" dotshot.onboardingComplete -bool true
+defaults write "$DEMO_ID" dotshot.onboardingComplete -bool false  # setup screens show first-run mode
 defaults write "$DEMO_ID" dotshot.dest mac
 
 echo "==> sample captures"

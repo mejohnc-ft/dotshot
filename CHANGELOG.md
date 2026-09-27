@@ -39,6 +39,8 @@ First public release. **Shot Pill is now dotshot.**
 - Transfers never wait for a password prompt; unreachable destinations fail after 10 seconds and keep the local copy
 - `~/…` destination folders are resolved to absolute remote paths before the path is copied
 - Files sent by drag and drop get safe names with a timestamp
+- Setup is a standard macOS window: system corners and shadow, movable, minimizable, remembers its position; after first-time setup it becomes dotshot's Settings (sections instead of numbered steps, one Done button, Escape and ⌘W close it)
+- The pill shows a hint before your first capture instead of an empty band
 - Trim uses a built-in trim window instead of QuickTime
 - Drop targets support up to six destinations
 - A link to an unknown destination reports it instead of sending to another machine
@@ -66,6 +68,8 @@ First public release. **Shot Pill is now dotshot.**
 - A `dotshot://setup` link that launched the app was replaced by the first-run welcome screen
 - Setup and the pill didn't show destinations added outside the app until relaunch
 - The expanded pill covered setup's Continue button on small screens
+- Setup was a borderless panel with a square corner behind its rounded one, and it couldn't be moved
+- The pill stayed expanded over setup when a link launched the app, because a stray hover event cancelled its auto-collapse
 - Builds ran only on the macOS version and CPU architecture of the build machine
 - The pill's Shot and Vid buttons appeared gray instead of the accent color
 - Drop targets didn't fill the panel and didn't match the tiles with fewer than four destinations

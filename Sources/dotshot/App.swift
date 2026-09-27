@@ -723,6 +723,9 @@ final class PillState: ObservableObject {
         }
     }
     func hover(_ inside: Bool) {
+        // macOS sends spurious "entered" events when windows appear (setup opening, app launch); only
+        // count one when the pointer is really over the pill, or the auto-collapse gets cancelled.
+        if inside, let frame = pillWindow?.frame, !frame.contains(NSEvent.mouseLocation) { return }
         collapseWork?.cancel()
         if inside {
             withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) { expanded = true }
@@ -825,7 +828,8 @@ struct PillView: View {
                 resizePill(EXPANDED)
             default:
                 resizePill(EXPANDED)
-                state.autoCollapse(after: 6.0)
+                // Setup may already be open (a dotshot:// link launched the app); don't cover it.
+                state.autoCollapse(after: SetupController.shared.isVisible ? 0.3 : 6.0)
             }
         }
     }
@@ -977,6 +981,14 @@ struct PillView: View {
                     }
                 }
                 .frame(height: 72)
+            } else {
+                // Keeps the pill's height steady before the first capture instead of leaving a blank band.
+                Text("RECENT").font(.system(size: 10.5, weight: .semibold)).foregroundStyle(SECONDARY_TEXT)
+                Text("Your captures will appear here. Press ⌃⌥⌘S to take the first one.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(SECONDARY_TEXT)
+                    .frame(maxWidth: .infinity, minHeight: 72)
+                    .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 8))
             }
         }
         .padding(16)
@@ -994,6 +1006,16 @@ enum SetupStep: Int, CaseIterable, Identifiable {
     static func named(_ name: String) -> SetupStep? {
         allCases.first { String(describing: $0) == name.lowercased() }
     }
+    /// Labels once first-time setup is done and the window is dotshot's Settings.
+    var settingsTitle: String {
+        switch self {
+        case .welcome: "About"
+        case .test: "Test Capture"
+        case .done: "Shortcuts"
+        default: title
+        }
+    }
+
     var title: String {
         switch self {
         case .welcome: "Why dotshot"
@@ -1073,27 +1095,20 @@ struct SetupView: View {
                     .padding(.vertical, 18)
             }
         }
-        .frame(width: 840, height: 610)
-        // Thick, not ultra-thin: over a light wallpaper in light mode, thin materials wash text out.
-        .background(.thickMaterial, in: RoundedRectangle(cornerRadius: 24))
-        .overlay(RoundedRectangle(cornerRadius: 24).strokeBorder(.white.opacity(0.14)))
-        .overlay(alignment: .topTrailing) {
-            Button(action: onFinish) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 11, weight: .bold))
-                    .frame(width: 25, height: 25)
-                    .background(Color.primary.opacity(0.07), in: Circle())
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(SECONDARY_TEXT)
-            .keyboardShortcut(.cancelAction)
-            .padding(18)
+        .frame(minWidth: 840, minHeight: 610)
+        // Hidden button so Escape and ⌘W close the window like any settings pane.
+        .background {
+            Button("Close", action: onFinish).keyboardShortcut(.cancelAction).hidden()
+            Button("Close", action: onFinish).keyboardShortcut("w", modifiers: .command).hidden()
         }
-        .shadow(color: .black.opacity(0.4), radius: 28, y: 14)
     }
+
+    /// After first-time setup, the same window is dotshot's Settings: sections instead of numbered steps.
+    private var isSettings: Bool { UserDefaults.standard.bool(forKey: "dotshot.onboardingComplete") }
 
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 8) {
+            Color.clear.frame(height: 22)  // the window's traffic lights sit here
             HStack(spacing: 10) {
                 Image(systemName: "camera.viewfinder")
                     .font(.system(size: 17, weight: .bold))
@@ -1102,7 +1117,7 @@ struct SetupView: View {
                     .background(accent, in: Circle())
                 VStack(alignment: .leading, spacing: 0) {
                     Text("dotshot").font(.system(size: 15, weight: .bold))
-                    Text("SETUP · v\(Brand.version)").font(.system(size: 9, weight: .bold)).tracking(1.2).foregroundStyle(SECONDARY_TEXT)
+                    Text("\(isSettings ? "SETTINGS" : "SETUP") · v\(Brand.version)").font(.system(size: 9, weight: .bold)).tracking(1.2).foregroundStyle(SECONDARY_TEXT)
                 }
             }
             .padding(.bottom, 16)
@@ -1114,16 +1129,16 @@ struct SetupView: View {
                     HStack(spacing: 10) {
                         Image(systemName: item.icon)
                             .frame(width: 18)
-                        Text(item.title)
+                        Text(isSettings ? item.settingsTitle : item.title)
                             .font(.system(size: 12.5, weight: step == item ? .semibold : .regular))
                             .lineLimit(1)
                         Spacer()
-                        if item == .permissions && !screenPermission && step.rawValue > item.rawValue {
+                        if item == .permissions && !screenPermission && (isSettings || step.rawValue > item.rawValue) {
                             // Visited but not granted: don't show a tick that reads as "done".
                             Image(systemName: "exclamationmark.circle.fill")
                                 .font(.system(size: 11))
                                 .foregroundStyle(STATUS_WARN)
-                        } else if item.rawValue < step.rawValue {
+                        } else if !isSettings, item.rawValue < step.rawValue {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.system(size: 11))
                                 .foregroundStyle(accent)
@@ -1383,7 +1398,7 @@ struct SetupView: View {
                     .buttonStyle(AccentButtonStyle(color: accent))
             }
             callout(
-                "Test before continuing",
+                isSettings ? "Test after changes" : "Test before continuing",
                 "Test checks the host, key authentication, and folder separately. It creates the folder when allowed and converts ~/inbound into an absolute path your agent can use.",
                 "checkmark.shield.fill"
             )
@@ -1523,7 +1538,26 @@ struct SetupView: View {
         }
     }
 
-    private var footer: some View {
+    @ViewBuilder private var footer: some View {
+        if isSettings {
+            HStack {
+                if step == .destinations, !saveMessage.isEmpty {
+                    Text(saveMessage).font(.system(size: 11.5)).foregroundStyle(SECONDARY_TEXT)
+                }
+                Spacer()
+                Button("Done") {
+                    if step == .destinations { guard saveDestinations() else { return } }
+                    onFinish()
+                }
+                .buttonStyle(AccentButtonStyle(color: accent))
+                .keyboardShortcut(.defaultAction)
+            }
+        } else {
+            onboardingFooter
+        }
+    }
+
+    private var onboardingFooter: some View {
         HStack {
             if step != .welcome {
                 Button("Back") {
@@ -1872,7 +1906,9 @@ struct SetupView: View {
     }
 }
 
-final class SetupPanel: NSPanel {
+/// A plain window, not a panel: panels hide when dotshot loses focus, and setup has to stay put while you
+/// switch to System Settings to grant permission.
+final class SetupPanel: NSWindow {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
 }
@@ -1880,33 +1916,37 @@ final class SetupPanel: NSPanel {
 final class SetupController {
     static let shared = SetupController()
     private var panel: SetupPanel?
+    var isVisible: Bool { panel?.isVisible ?? false }
 
     func present(initialStep: SetupStep = .welcome) {
         panel?.close()
         // Show destinations added outside the app (by hand, or by an agent using the script's `add`).
         DestinationStore.shared.reload()
         NotificationCenter.default.post(name: .dotshotSetupPresented, object: nil)
-        let size = NSSize(width: 868, height: 638)
+        // A standard window: system rounded corners and shadow, draggable, closable and minimizable, and it
+        // remembers where you put it. The titlebar is transparent so the sidebar runs to the top.
         let setupPanel = SetupPanel(
-            contentRect: NSRect(origin: .zero, size: size),
-            styleMask: [.borderless],
+            contentRect: NSRect(x: 0, y: 0, width: 840, height: 610),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
-        setupPanel.isOpaque = false
-        setupPanel.backgroundColor = .clear
-        setupPanel.hasShadow = false
+        setupPanel.title = UserDefaults.standard.bool(forKey: "dotshot.onboardingComplete") ? "dotshot Settings" : "dotshot Setup"
+        setupPanel.titleVisibility = .hidden
+        setupPanel.titlebarAppearsTransparent = true
+        setupPanel.isMovableByWindowBackground = true
+        setupPanel.contentMinSize = NSSize(width: 840, height: 610)
         // Normal level, not floating: macOS shows the Screen Recording request as an alert, and a floating
         // setup window hid it (found on a clean macOS 14 VM). Setup is activated when presented instead.
         setupPanel.level = .normal
         setupPanel.sharingType = .readOnly
-        setupPanel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         setupPanel.isReleasedWhenClosed = false
         setupPanel.contentView = NSHostingView(rootView: SetupView(
             initialStep: initialStep,
             onFinish: { [weak self] in self?.dismiss() }
         ))
-        setupPanel.center()
+        if !setupPanel.setFrameUsingName("dotshot.settings") { setupPanel.center() }
+        setupPanel.setFrameAutosaveName("dotshot.settings")
         panel = setupPanel
         NSApp.activate(ignoringOtherApps: true)
         setupPanel.makeKeyAndOrderFront(nil)
