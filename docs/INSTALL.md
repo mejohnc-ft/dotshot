@@ -1,7 +1,8 @@
 # Install dotshot
 
 - [Requirements](#requirements)
-- [Download (recommended)](#download-recommended)
+- [Homebrew](#homebrew)
+- [Download](#download)
 - [Opening dotshot the first time](#opening-dotshot-the-first-time)
 - [Guided setup](#guided-setup)
 - [Build from source](#build-from-source)
@@ -18,7 +19,16 @@
 | Authentication | SSH key login from this Mac to the destination, with no password prompt |
 | Optional | [Tailscale](https://tailscale.com) for reaching machines on other networks |
 
-## Download (recommended)
+## Homebrew
+
+```bash
+brew install --cask mejohnc-ft/tap/dotshot
+```
+
+This installs the same signed and notarized DMG as the release page. Update with
+`brew upgrade --cask dotshot`.
+
+## Download
 
 1. Go to the [latest release](https://github.com/mejohnc-ft/dotshot/releases/latest).
 2. Download `dotshot-<version>.dmg`. If you prefer a ZIP, `dotshot-<version>.zip` holds the same app.
@@ -131,6 +141,7 @@ dotshot doesn't check for updates or connect to the internet on its own.
   If captures come back blank after an update, turn dotshot off and on under
   **Privacy & Security → Screen & System Audio Recording**, or run
   `tccutil reset ScreenCapture com.mejohnc.dotshot` and relaunch.
+- **Homebrew:** `brew upgrade --cask dotshot`
 - **Source install:** `git pull && ./scripts/install.sh`
 
 To get notified about new versions, **Watch → Custom → Releases** on the

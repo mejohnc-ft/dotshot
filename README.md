@@ -71,6 +71,12 @@ destination, dotshot needs nothing but a folder the SSH account can write to.
 **Requirements:** macOS 14 Sonoma or newer (Apple silicon or Intel), plus a Mac or
 Linux destination you can SSH into with a key.
 
+```bash
+brew install --cask mejohnc-ft/tap/dotshot
+```
+
+Or download it yourself:
+
 1. Download `dotshot-<version>.dmg` from the [latest release](https://github.com/mejohnc-ft/dotshot/releases/latest).
 2. Open the DMG and drag **dotshot** to **Applications**.
 3. Open dotshot. Setup starts automatically.
