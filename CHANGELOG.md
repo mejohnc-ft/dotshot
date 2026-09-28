@@ -4,7 +4,7 @@ All notable changes to dotshot are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
-## [1.0.0] - 2026-09-16
+## [1.0.0] - 2026-09-28
 
 First public release. **Shot Pill is now dotshot.**
 
