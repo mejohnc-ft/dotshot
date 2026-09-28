@@ -1,19 +1,20 @@
 #!/bin/bash
-# Source install for macOS. Builds into ~/Applications and launches first-run onboarding.
+# Build and install dotshot from source into ~/Applications, then open guided setup.
+# Prefer the signed release download unless you want to build it yourself.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP="$HOME/Applications/Shot Pill.app"
-CERT="Shot Pill Local Signing"
+APP="$HOME/Applications/dotshot.app"
+CERT="dotshot Local Signing"
 
 if [ "$(uname -s)" != "Darwin" ]; then
-  echo "Shot Pill requires macOS." >&2
+  echo "dotshot requires macOS." >&2
   exit 1
 fi
 
 major="$(sw_vers -productVersion | cut -d. -f1)"
-if [ "$major" -lt 13 ]; then
-  echo "Shot Pill requires macOS 13 or newer." >&2
+if [ "$major" -lt 14 ]; then
+  echo "dotshot requires macOS 14 Sonoma or newer." >&2
   exit 1
 fi
 
@@ -25,21 +26,25 @@ fi
 
 mkdir -p "$HOME/Applications"
 
-if ! security find-identity -p codesigning 2>/dev/null | grep -Fq "\"$CERT\""; then
+if ! security find-identity -v -p codesigning 2>/dev/null | grep -Fq "\"$CERT\""; then
   if [ -t 0 ]; then
-    printf "Create a stable local signing identity so Screen Recording approval survives rebuilds? [Y/n] "
+    printf "Create a local signing identity so Screen Recording approval survives rebuilds? [Y/n] "
     read -r answer
   else
     answer="n"
   fi
   case "${answer:-y}" in
-    n|N|no|NO)
-      echo "Continuing with ad-hoc signing; updates may require Screen Recording approval again." ;;
-    *)
-      "$ROOT/scripts/create-local-signing-identity.sh" ;;
+    n|N|no|NO) echo "Continuing with ad-hoc signing; rebuilds may require Screen Recording approval again." ;;
+    *) "$ROOT/scripts/create-local-signing-identity.sh" ;;
   esac
 fi
 
-SHOTPILL_APP_PATH="$APP" "$ROOT/scripts/build.sh"
+LEGACY_APP="$HOME/Applications/Shot Pill.app"
+if [ -d "$LEGACY_APP" ]; then
+  echo "Found Shot Pill.app (dotshot's previous name). dotshot imports its destinations and settings on first launch."
+  echo "Remove the old app afterward with: ./scripts/uninstall.sh --legacy"
+fi
+
+DOTSHOT_APP_PATH="$APP" "$ROOT/scripts/build.sh"
 echo
-echo "Installation complete. Follow the setup window to configure permission, SSH destinations, testing, login, and appearance."
+echo "Installed $APP. Follow the setup window to grant permission and connect a destination."

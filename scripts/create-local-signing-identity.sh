@@ -2,8 +2,8 @@
 # Create a per-user, self-signed code-signing identity for stable local rebuilds.
 set -euo pipefail
 
-CERT_NAME="${SHOTPILL_SIGNING_IDENTITY:-Shot Pill Local Signing}"
-LOGIN_KEYCHAIN="${SHOTPILL_KEYCHAIN:-$HOME/Library/Keychains/login.keychain-db}"
+CERT_NAME="${DOTSHOT_SIGNING_IDENTITY:-dotshot Local Signing}"
+LOGIN_KEYCHAIN="${DOTSHOT_KEYCHAIN:-$HOME/Library/Keychains/login.keychain-db}"
 
 if security find-identity -p codesigning "$LOGIN_KEYCHAIN" 2>/dev/null | grep -Fq "\"$CERT_NAME\""; then
   echo "Signing identity already exists: $CERT_NAME"
@@ -14,12 +14,12 @@ for tool in openssl security; do
   command -v "$tool" >/dev/null || { echo "ERROR: '$tool' is required." >&2; exit 1; }
 done
 
-WORK="$(mktemp -d "${TMPDIR:-/tmp}/shot-pill-cert.XXXXXX")"
+WORK="$(mktemp -d "${TMPDIR:-/tmp}/dotshot-cert.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
 PASSWORD="$(openssl rand -hex 18)"
 
 openssl req -new -newkey rsa:2048 -x509 -sha256 -nodes -days 3650 \
-  -subj "/CN=$CERT_NAME/O=Shot Pill Local Development" \
+  -subj "/CN=$CERT_NAME/O=dotshot Local Development" \
   -addext "keyUsage=critical,digitalSignature" \
   -addext "extendedKeyUsage=critical,codeSigning" \
   -keyout "$WORK/key.pem" \

@@ -1,6 +1,6 @@
 # Connect a destination over SSH
 
-Shot Pill sends files with the `scp` command already included with macOS. It does
+dotshot sends files with the `scp` command already included with macOS. It does
 not run a receiving service or store passwords, private keys, or Tailscale
 credentials.
 
@@ -46,7 +46,7 @@ sudo systemctl enable --now ssh
 
 Confirm the destination account with `whoami`.
 
-## 2. Create a key on the Shot Pill Mac
+## 2. Create a key on the Mac running dotshot
 
 Check for the recommended Ed25519 public key:
 
@@ -57,7 +57,7 @@ test -f ~/.ssh/id_ed25519.pub && echo "Key already exists"
 If it does not exist:
 
 ```bash
-ssh-keygen -t ed25519 -C "shot-pill@$(scutil --get LocalHostName)"
+ssh-keygen -t ed25519 -C "dotshot@$(scutil --get LocalHostName)"
 ```
 
 Accept the default file location. A passphrase provides additional protection,
@@ -94,16 +94,16 @@ ssh -o BatchMode=yes username@device true && echo "SSH is ready"
 
 ## 4. Choose a receiving folder
 
-Shot Pill can create the folder during its connection test. To create it
+dotshot can create the folder during its connection test. To create it
 yourself:
 
 ```bash
 ssh username@device 'mkdir -p ~/inbound && chmod 700 ~/inbound'
 ```
 
-In Shot Pill, enter `~/inbound`. A successful test resolves it to an absolute
+In dotshot, enter `~/inbound`. A successful test resolves it to an absolute
 path such as `/Users/username/inbound` or `/home/username/inbound`, which is the
-path Shot Pill copies for your agent.
+path dotshot copies for your agent.
 
 ## Tailscale
 
@@ -145,7 +145,7 @@ chmod 600 ~/.ssh/config
 ssh studio
 ```
 
-Enter `studio` as Shot Pill's SSH address.
+Enter `studio` as the SSH address in dotshot.
 
 ## Troubleshooting
 
@@ -180,8 +180,8 @@ its ownership and permissions on the destination.
 
 ## Security boundary
 
-- Shot Pill invokes the system `ssh` and `scp` tools.
+- dotshot invokes the system `ssh` and `scp` tools.
 - Private keys remain in your normal `~/.ssh` configuration.
-- Password prompts are disabled during Shot Pill tests and transfers.
+- Password prompts are disabled during dotshot tests and transfers.
 - Host-key verification remains enforced.
 - Only the destinations in your local configuration receive files.

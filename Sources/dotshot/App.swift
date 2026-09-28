@@ -1,29 +1,48 @@
-// shotpill.swift — resident floating "pill" launcher for shot-to-work.
-// Collapsed = a small capsule; hover expands to Shot / Vid + a recent-shots gallery.
-// Clicking Shot/Vid spawns ~/bin/shot-to-work.sh (image|video). Esc/× quits.
+// App.swift — the resident dotshot pill, recording picker, and guided setup.
+// Collapsed = a small camera nub; hover expands to Shot / Vid, destinations, and recent captures.
 import SwiftUI
 import AppKit
 import Carbon
 import ServiceManagement
 import QuickLookThumbnailing
 import UniformTypeIdentifiers
+import UserNotifications
 
-let SHOTS = (NSHomeDirectory() as NSString).appendingPathComponent("Shots")
-let SCRIPT = Bundle.main.resourceURL?
-    .appendingPathComponent("shot-to-work.sh").path
-    ?? (NSHomeDirectory() as NSString).appendingPathComponent("bin/shot-to-work.sh")
-let CONFIG_DIR = (NSHomeDirectory() as NSString).appendingPathComponent("Library/Application Support/Shot Pill")
-let DESTINATIONS_FILE = (CONFIG_DIR as NSString).appendingPathComponent("destinations.tsv")
+/// Released builds ignore DOTSHOT_* environment overrides; see `developmentOverridesAllowed`.
+let OVERRIDES = developmentOverridesAllowed(bundleID: Bundle.main.bundleIdentifier)
+let PATHS = OVERRIDES ? Paths() : Paths(environment: [:])
+
+/// Documentation-capture switches. Never set in normal use.
+struct DemoOptions {
+    let capturable: Bool       // DOTSHOT_CAPTURABLE=1 lets screencapture see the pill
+    let pinnedState: String?   // DOTSHOT_DEMO_STATE=collapsed|expanded|drop freezes the pill
+    let openSetupStep: String? // DOTSHOT_DEMO_SETUP=<step> opens setup at that step
+    let openPicker: Bool       // DOTSHOT_DEMO_PICKER=1 opens the recording picker
+    let suppressSetup: Bool    // DOTSHOT_NO_AUTO_SETUP=1 skips the automatic first-run window
+
+    init(_ environment: [String: String] = ProcessInfo.processInfo.environment) {
+        capturable = environment["DOTSHOT_CAPTURABLE"] == "1"
+        pinnedState = environment["DOTSHOT_DEMO_STATE"]
+        suppressSetup = environment["DOTSHOT_NO_AUTO_SETUP"] == "1"
+        openSetupStep = environment["DOTSHOT_DEMO_SETUP"]
+        openPicker = environment["DOTSHOT_DEMO_PICKER"] == "1"
+    }
+}
+let DEMO = OVERRIDES ? DemoOptions() : DemoOptions([:])
+let SHOTS = PATHS.shots
+let SCRIPT = Bundle.main.resourceURL?.appendingPathComponent("dotshot-capture.sh").path ?? ""
 
 let COLLAPSED = NSSize(width: 56, height: 56)   // small round nub when idle
-let EXPANDED  = NSSize(width: 500, height: 292)
+let EXPANDED  = NSSize(width: 500, height: 262)
 let QUADRANT  = NSSize(width: 320, height: 224)
+/// Drop grid size: wider when five or six destinations need three columns.
+func dropGridSize(_ count: Int) -> NSSize { DropGrid.columns(for: min(count, DropGrid.maxTiles)) > 2 ? NSSize(width: 450, height: 224) : QUADRANT }
 let RECORDING_PICKER = NSSize(width: 700, height: 390)
 
 weak var pillWindow: NSWindow?
 
 func configuredScreen() -> NSScreen? {
-    let savedName = UserDefaults.standard.string(forKey: "shotpill.displayName")
+    let savedName = UserDefaults.standard.string(forKey: "dotshot.displayName")
     return savedName.flatMap { name in NSScreen.screens.first(where: { $0.localizedName == name }) }
         ?? NSScreen.main
         ?? NSScreen.screens.first
@@ -31,9 +50,9 @@ func configuredScreen() -> NSScreen? {
 
 func configuredPillFrame(for size: NSSize) -> NSRect? {
     guard let visibleFrame = configuredScreen()?.visibleFrame else { return nil }
-    let inset = CGFloat(UserDefaults.standard.double(forKey: "shotpill.inset"))
-    let safeInset = UserDefaults.standard.object(forKey: "shotpill.inset") == nil ? 24 : min(max(inset, 0), 64)
-    let position = UserDefaults.standard.string(forKey: "shotpill.position") ?? "bottomRight"
+    let inset = CGFloat(UserDefaults.standard.double(forKey: "dotshot.inset"))
+    let safeInset = UserDefaults.standard.object(forKey: "dotshot.inset") == nil ? 24 : min(max(inset, 0), 64)
+    let position = UserDefaults.standard.string(forKey: "dotshot.position") ?? "bottomRight"
 
     let x = position.hasSuffix("Left")
         ? visibleFrame.minX + safeInset
@@ -49,15 +68,9 @@ func resizePill(_ size: NSSize) {
     window.setFrame(frame, display: true, animate: true)
 }
 
-let HOTKEY_SIGNATURE: OSType = 0x53504C4C  // "SPLL"
+let HOTKEY_SIGNATURE: OSType = 0x44545348  // "DTSH"
 let IMAGE_HOTKEY_ID: UInt32 = 1
 let VIDEO_HOTKEY_ID: UInt32 = 2
-
-struct Destination: Identifiable, Equatable {
-    var id: String
-    var host: String
-    var remotePath: String
-}
 
 final class DestinationStore: ObservableObject {
     static let shared = DestinationStore()
@@ -66,51 +79,24 @@ final class DestinationStore: ObservableObject {
     private init() { reload() }
 
     func reload() {
-        guard let data = FileManager.default.contents(atPath: DESTINATIONS_FILE),
+        guard let data = FileManager.default.contents(atPath: PATHS.destinationsFile),
               let text = String(data: data, encoding: .utf8) else {
             items = []
             return
         }
-        items = text.split(whereSeparator: \.isNewline).compactMap { rawLine in
-            let line = String(rawLine)
-            guard !line.hasPrefix("#") else { return nil }
-            let fields = line.components(separatedBy: "\t")
-            guard fields.count >= 3 else { return nil }
-            let id = fields[0].trimmingCharacters(in: .whitespaces)
-            let host = fields[1].trimmingCharacters(in: .whitespaces)
-            let path = fields[2].trimmingCharacters(in: .whitespaces)
-            guard !id.isEmpty, !host.isEmpty, !path.isEmpty else { return nil }
-            return Destination(id: id, host: host, remotePath: path)
-        }
+        items = DestinationFormat.parse(text)
     }
 
     @discardableResult
     func save(_ destinations: [Destination]) -> Bool {
-        let cleaned = destinations.compactMap { destination -> Destination? in
-            let id = destination.id.trimmingCharacters(in: .whitespacesAndNewlines)
-            let host = destination.host.trimmingCharacters(in: .whitespacesAndNewlines)
-            let path = destination.remotePath.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !id.isEmpty, !host.isEmpty, !path.isEmpty,
-                  !id.contains("\t"), !host.contains("\t"), !path.contains("\t"),
-                  id.rangeOfCharacter(from: .newlines) == nil,
-                  host.rangeOfCharacter(from: .whitespacesAndNewlines) == nil,
-                  path.rangeOfCharacter(from: .newlines) == nil,
-                  !host.hasPrefix("-"),
-                  path == "~" || path.hasPrefix("~/") || path.hasPrefix("/") else { return nil }
-            return Destination(id: id, host: host, remotePath: path)
-        }
-        guard cleaned.count == destinations.count,
-              Set(cleaned.map(\.id)).count == cleaned.count else { return false }
-
+        guard let cleaned = DestinationFormat.cleaned(destinations) else { return false }
         do {
             try FileManager.default.createDirectory(
-                at: URL(fileURLWithPath: CONFIG_DIR),
+                at: URL(fileURLWithPath: PATHS.configDir),
                 withIntermediateDirectories: true
             )
-            let header = "# name\\tssh-host-or-alias\\tremote-folder\n"
-            let body = cleaned.map { "\($0.id)\t\($0.host)\t\($0.remotePath)" }.joined(separator: "\n")
-            try (header + body + "\n").write(
-                to: URL(fileURLWithPath: DESTINATIONS_FILE),
+            try DestinationFormat.serialize(cleaned).write(
+                to: URL(fileURLWithPath: PATHS.destinationsFile),
                 atomically: true,
                 encoding: .utf8
             )
@@ -122,15 +108,16 @@ final class DestinationStore: ObservableObject {
     }
 }
 
-func selectedDestination() -> String {
-    let ids = DestinationStore.shared.items.map(\.id)
-    let saved = UserDefaults.standard.string(forKey: "shotpill.dest")
-    return saved.flatMap { ids.contains($0) ? $0 : nil } ?? ids.first ?? "work"
-}
-
-func validatedDestination(_ requested: String) -> String {
-    let ids = DestinationStore.shared.items.map(\.id)
-    return ids.contains(requested) ? requested : (ids.first ?? requested)
+/// The destination captures go to: `requested` when configured, else the saved choice, else the first.
+/// Returns nil when nothing is configured.
+func currentDestination(_ requested: String? = nil) -> String? {
+    // destinations.tsv may have been edited outside the app (by hand, or by an agent using the script's `add`).
+    DestinationStore.shared.reload()
+    return resolveDestination(
+        requested: requested,
+        saved: UserDefaults.standard.string(forKey: "dotshot.dest"),
+        available: DestinationStore.shared.items.map(\.id)
+    )
 }
 
 // One distinct color per destination tile (drop-mode quadrant).
@@ -139,6 +126,8 @@ let TILECOLORS: [Color] = [
     Color(red: 0.165, green: 0.631, blue: 0.596),  // cyan
     Color(red: 0.424, green: 0.443, blue: 0.769),  // violet
     Color(red: 0.522, green: 0.600, blue: 0.000),  // green
+    Color(red: 0.149, green: 0.545, blue: 0.824),  // blue
+    Color(red: 0.827, green: 0.212, blue: 0.510),  // magenta
 ]
 
 // Accent presets — Solarized-forward, gold first (matches Solarized Dark bg). Persists across launches.
@@ -156,18 +145,169 @@ let PRESETS: [Color] = [
     Color(red: 0.170, green: 0.180, blue: 0.200),  // graphite
 ]
 
-// Black or white text, whichever reads better on the given accent.
+/// Dark ink for text on light fills: the gold family reads far better with it than with white.
+let INK = Color(red: 0.106, green: 0.082, blue: 0.0)
+
+/// Secondary text that stays readable in light and dark mode (the system secondary style washes out on
+/// the translucent light backgrounds dotshot uses).
+let SECONDARY_TEXT = Color.primary.opacity(0.68)
+
+/// A color with separate light- and dark-mode values.
+func adaptive(light: NSColor, dark: NSColor) -> Color {
+    Color(nsColor: NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.darkAqua, .vibrantDark]) != nil ? dark : light
+    })
+}
+/// Test results: the system green and orange are too light to read on white.
+let STATUS_OK = adaptive(light: NSColor(srgbRed: 0.10, green: 0.46, blue: 0.20, alpha: 1), dark: NSColor(srgbRed: 0.19, green: 0.82, blue: 0.35, alpha: 1))
+let STATUS_WARN = adaptive(light: NSColor(srgbRed: 0.62, green: 0.30, blue: 0.0, alpha: 1), dark: NSColor(srgbRed: 1.0, green: 0.62, blue: 0.04, alpha: 1))
+
+/// Dark ink or white, whichever has the higher WCAG contrast against the fill.
 func idealText(on c: Color) -> Color {
     let ns = NSColor(c).usingColorSpace(.sRGB) ?? .white
-    let lum = 0.299 * ns.redComponent + 0.587 * ns.greenComponent + 0.114 * ns.blueComponent
-    return lum > 0.62 ? .black : .white
+    func linear(_ v: CGFloat) -> CGFloat { v <= 0.04045 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4) }
+    let l = 0.2126 * linear(ns.redComponent) + 0.7152 * linear(ns.greenComponent) + 0.0722 * linear(ns.blueComponent)
+    let againstWhite = 1.05 / (l + 0.05), againstInk = (l + 0.05) / 0.056
+    return againstInk >= againstWhite ? INK : .white
 }
 
-func runCapture(_ mode: String, _ dest: String, _ extraArguments: [String] = []) {
-    let p = Process()
-    p.executableURL = URL(fileURLWithPath: "/bin/bash")
-    p.arguments = [SCRIPT, mode, validatedDestination(dest)] + extraArguments
-    try? p.run()
+/// The prominent button style for setup, with text chosen for contrast. The system's prominent style
+/// always draws white text, which is too faint on dotshot's lighter accents.
+struct AccentButtonStyle: ButtonStyle {
+    let color: Color
+
+    func makeBody(configuration: Configuration) -> some View {
+        Styled(configuration: configuration, color: color)
+    }
+
+    private struct Styled: View {
+        let configuration: ButtonStyleConfiguration
+        let color: Color
+        @Environment(\.isEnabled) private var isEnabled
+
+        var body: some View {
+            configuration.label
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(idealText(on: color))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(RoundedRectangle(cornerRadius: 7).fill(color))
+                .contentShape(RoundedRectangle(cornerRadius: 7))
+                .opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1) : 0.45)
+        }
+    }
+}
+
+/// Interactive captures in progress; a second shortcut press while one runs is ignored.
+var activeCaptures = 0
+
+/// Runs the bundled capture script. Arguments are passed directly, never through a shell string.
+@discardableResult
+func runScript(_ arguments: [String], onExit: (() -> Void)? = nil) -> Bool {
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/bin/bash")
+    process.arguments = ["--noprofile", "--norc", SCRIPT] + arguments
+    process.environment = scriptEnvironment(paths: PATHS)
+    process.terminationHandler = { _ in DispatchQueue.main.async { onExit?() } }
+    let output = Pipe()
+    process.standardOutput = output
+    var buffer = Data()
+    output.fileHandleForReading.readabilityHandler = { handle in
+        let chunk = handle.availableData
+        if chunk.isEmpty {
+            handle.readabilityHandler = nil
+            return
+        }
+        buffer.append(chunk)
+        while let newline = buffer.firstIndex(of: 0x0A) {
+            let line = String(decoding: buffer[buffer.startIndex..<newline], as: UTF8.self)
+            buffer.removeSubrange(buffer.startIndex...newline)
+            let fields = line.components(separatedBy: "\t")
+            if fields.count == 3, fields[0] == "dotshot-notify" {
+                Notifier.shared.post(title: fields[1], body: fields[2])
+            }
+        }
+    }
+    do {
+        try process.run()
+        return true
+    } catch {
+        NSLog("dotshot: could not run capture script: \(error)")
+        NSSound.beep()
+        return false
+    }
+}
+
+final class Notifier: NSObject, UNUserNotificationCenterDelegate {
+    static let shared = Notifier()
+    private let center = UNUserNotificationCenter.current()
+
+    private override init() {
+        super.init()
+        center.delegate = self
+    }
+
+    func post(title: String, body: String) {
+        center.requestAuthorization(options: [.alert, .sound]) { granted, error in
+            guard granted else {
+                if let error { NSLog("dotshot: notifications unavailable: \(error.localizedDescription)") }
+                return
+            }
+            let content = UNMutableNotificationContent()
+            content.title = title
+            content.body = body
+            self.center.add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
+        }
+    }
+
+    // dotshot is an accessory app that is often frontmost while capturing; show banners anyway.
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .list])
+    }
+}
+
+/// Opens setup instead of failing silently when no destination is configured yet. A named destination
+/// that doesn't exist (a typo in a dotshot:// link) is reported instead of sending somewhere else.
+func requireDestination(_ requested: String? = nil) -> String? {
+    if let dest = currentDestination(requested) { return dest }
+    NSSound.beep()
+    if let requested, !DestinationStore.shared.items.isEmpty {
+        Notifier.shared.post(title: "Unknown destination", body: "No destination named '\(requested)'. Nothing was captured.")
+    } else {
+        SetupController.shared.present(initialStep: .destinations)
+    }
+    return nil
+}
+
+func runCapture(_ mode: String, _ requested: String? = nil, _ extraArguments: [String] = []) {
+    guard let dest = requireDestination(requested) else { return }
+    // One interactive capture at a time: overlapping selections or recordings would race each other.
+    guard activeCaptures == 0 else { NSSound.beep(); return }
+    activeCaptures += 1
+    if !runScript([mode, dest] + extraArguments, onExit: { activeCaptures = max(0, activeCaptures - 1) }) {
+        activeCaptures = max(0, activeCaptures - 1)
+    }
+}
+
+/// Recordings started by a dotshot:// link ask first, unless the user allowed automation to record freely.
+/// Any app or web page can open a link, and a display recording starts without further interaction.
+func confirmURLRecording(_ description: String, to requested: String?) -> Bool {
+    if UserDefaults.standard.bool(forKey: "dotshot.allowURLRecording") { return true }
+    guard let dest = currentDestination(requested) else { return true }  // requireDestination reports it
+    NSApp.activate(ignoringOtherApps: true)
+    let alert = NSAlert()
+    alert.messageText = "Start recording \(description)?"
+    alert.informativeText = "A dotshot:// link asked to record \(description) and send it to \(dest). Only continue if you started this."
+    alert.addButton(withTitle: "Record")
+    alert.addButton(withTitle: "Cancel")
+    alert.showsSuppressionButton = true
+    alert.suppressionButton?.title = "Always allow links to start recordings"
+    let confirmed = alert.runModal() == .alertFirstButtonReturn
+    if confirmed, alert.suppressionButton?.state == .on {
+        UserDefaults.standard.set(true, forKey: "dotshot.allowURLRecording")
+    }
+    return confirmed
 }
 
 struct RecordingSource: Identifiable {
@@ -221,7 +361,7 @@ struct RecordingSourceCard: View {
                         .frame(width: 94, height: 58)
                     Image(systemName: "viewfinder")
                         .font(.system(size: 24, weight: .medium))
-                        .foregroundStyle(selected ? accent : Color.secondary)
+                        .foregroundStyle(selected ? accent : SECONDARY_TEXT)
                 } else {
                     VStack(spacing: 3) {
                         RoundedRectangle(cornerRadius: 7)
@@ -263,14 +403,14 @@ struct RecordingSourceCard: View {
                     .lineLimit(1)
                 Text(source.resolution)
                     .font(.system(size: 11, weight: .medium, design: .monospaced))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(SECONDARY_TEXT)
             }
 
             if source.isMain {
                 Text("MAIN")
                     .font(.system(size: 9, weight: .bold))
                     .tracking(0.8)
-                    .foregroundStyle(selected ? idealText(on: accent) : Color.secondary)
+                    .foregroundStyle(selected ? idealText(on: accent) : SECONDARY_TEXT)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
                     .background(selected ? accent : Color.secondary.opacity(0.14), in: Capsule())
@@ -299,7 +439,7 @@ struct RecordingPickerView: View {
     let onCancel: () -> Void
 
     @State private var selectedID: String
-    @AppStorage("shotpill.accentIndex") private var accentIndex = 0
+    @AppStorage("dotshot.accentIndex") private var accentIndex = 0
     private var accent: Color { PRESETS[min(max(accentIndex, 0), PRESETS.count - 1)] }
     private var selected: RecordingSource { sources.first(where: { $0.id == selectedID }) ?? sources[0] }
 
@@ -308,7 +448,7 @@ struct RecordingPickerView: View {
         self.sources = sources
         self.onRecord = onRecord
         self.onCancel = onCancel
-        let saved = UserDefaults.standard.string(forKey: "shotpill.recordingSource")
+        let saved = UserDefaults.standard.string(forKey: "dotshot.recordingSource")
         let initial = sources.contains(where: { $0.id == saved }) ? saved! : (sources.first?.id ?? "region")
         _selectedID = State(initialValue: initial)
     }
@@ -327,7 +467,7 @@ struct RecordingPickerView: View {
                         .font(.system(size: 20, weight: .bold))
                     Text("The finished recording will be named and sent to \(dest).")
                         .font(.system(size: 12.5))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(SECONDARY_TEXT)
                 }
                 Spacer()
                 Button(action: onCancel) {
@@ -336,7 +476,7 @@ struct RecordingPickerView: View {
                         .frame(width: 26, height: 26)
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(SECONDARY_TEXT)
                 .background(Color.primary.opacity(0.07), in: Circle())
             }
 
@@ -353,15 +493,15 @@ struct RecordingPickerView: View {
 
             HStack(spacing: 10) {
                 Image(systemName: "stop.circle")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(SECONDARY_TEXT)
                 Text("Stop recording with ⌘⌃Esc")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(SECONDARY_TEXT)
                 Spacer()
                 Button("Cancel", action: onCancel)
                     .keyboardShortcut(.cancelAction)
                 Button {
-                    UserDefaults.standard.set(selected.id, forKey: "shotpill.recordingSource")
+                    UserDefaults.standard.set(selected.id, forKey: "dotshot.recordingSource")
                     onRecord(selected)
                 } label: {
                     Label("Start Recording", systemImage: "record.circle")
@@ -369,14 +509,13 @@ struct RecordingPickerView: View {
                         .padding(.horizontal, 6)
                 }
                 .keyboardShortcut(.defaultAction)
-                .buttonStyle(.borderedProminent)
-                .tint(accent)
+                .buttonStyle(AccentButtonStyle(color: accent))
                 .foregroundStyle(idealText(on: accent))
             }
         }
         .padding(28)
         .frame(width: RECORDING_PICKER.width - 28, height: RECORDING_PICKER.height - 28)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22))
+        .background(.thickMaterial, in: RoundedRectangle(cornerRadius: 22))
         .overlay(RoundedRectangle(cornerRadius: 22).strokeBorder(.white.opacity(0.14)))
         .shadow(color: .black.opacity(0.38), radius: 26, y: 12)
         .frame(width: RECORDING_PICKER.width, height: RECORDING_PICKER.height)
@@ -451,35 +590,24 @@ final class RecordingPickerController {
     }
 }
 
-func chooseRecordingSource(to dest: String) {
+func chooseRecordingSource(to requested: String? = nil) {
+    guard let dest = requireDestination(requested) else { return }
     RecordingPickerController.shared.present(to: dest)
 }
 
 func runCaptureURL(_ url: URL) {
-    guard url.scheme?.lowercased() == "shotpill" else { return }
-    let action = (url.host ?? url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))).lowercased()
-    let queryItems = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
-    let requestedDest = queryItems.first(where: { $0.name == "dest" })?.value
-    let destinationIDs = DestinationStore.shared.items.map(\.id)
-    let dest = requestedDest.flatMap { destinationIDs.contains($0) ? $0 : nil } ?? selectedDestination()
-
-    switch action {
-    case "shot", "image", "screenshot":
+    switch parseCaptureURL(url, screenCount: NSScreen.screens.count) {
+    case .image(let dest):
         runCapture("image", dest)
-    case "vid", "video", "record":
-        let requestedScreen = queryItems.first(where: { $0.name == "screen" })?.value
-        if let requestedScreen,
-           let screenNumber = Int(requestedScreen),
-           (1...NSScreen.screens.count).contains(screenNumber) {
-            runCapture("video", dest, [String(screenNumber)])
-        } else if requestedScreen?.lowercased() == "region" {
-            runCapture("video", dest)
-        } else {
-            chooseRecordingSource(to: dest)
-        }
-    case "settings", "setup", "onboarding":
-        SetupController.shared.present(initialStep: action == "settings" ? .destinations : .welcome)
-    default:
+    case .videoDisplay(let dest, let screen):
+        if confirmURLRecording("display \(screen)", to: dest) { runCapture("video", dest, [String(screen)]) }
+    case .videoRegion(let dest):
+        if confirmURLRecording("a selected area", to: dest) { runCapture("video", dest) }
+    case .videoPicker(let dest):
+        chooseRecordingSource(to: dest)
+    case .setup(let step):
+        SetupController.shared.present(initialStep: step.flatMap(SetupStep.named) ?? .welcome)
+    case .unknown:
         NSSound.beep()
     }
 }
@@ -510,11 +638,10 @@ final class GlobalHotKeys {
                 guard status == noErr, hotKeyID.signature == HOTKEY_SIGNATURE else { return status }
 
                 DispatchQueue.main.async {
-                    let dest = selectedDestination()
                     if hotKeyID.id == VIDEO_HOTKEY_ID {
-                        chooseRecordingSource(to: dest)
+                        chooseRecordingSource()
                     } else {
-                        runCapture("image", dest)
+                        runCapture("image")
                     }
                 }
                 return noErr
@@ -545,12 +672,8 @@ final class GlobalHotKeys {
     }
 }
 
-func sendFile(_ path: String, to host: String) {
-    let esc = path.replacingOccurrences(of: "'", with: "'\\''")
-    let p = Process()
-    p.executableURL = URL(fileURLWithPath: "/bin/bash")
-    p.arguments = ["-lc", "'\(SCRIPT)' send \(host) '\(esc)'"]
-    try? p.run()
+func sendFile(_ path: String, to dest: String) {
+    runScript(["send", dest, path])
 }
 
 // ── recent-shots gallery ─────────────────────────────────────────────────────
@@ -582,10 +705,27 @@ final class Gallery: ObservableObject {
     }
 }
 
+extension Notification.Name {
+    /// Posted when setup opens; the pill collapses so it doesn't cover setup's buttons.
+    static let dotshotSetupPresented = Notification.Name("dotshot.setupPresented")
+}
+
 final class PillState: ObservableObject {
     @Published var expanded = true
     private var collapseWork: DispatchWorkItem?
+    private var setupObserver: NSObjectProtocol?
+
+    init() {
+        setupObserver = NotificationCenter.default.addObserver(forName: .dotshotSetupPresented, object: nil, queue: .main) { [weak self] _ in
+            guard DEMO.pinnedState == nil else { return }
+            self?.collapseWork?.cancel()
+            withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) { self?.expanded = false }
+        }
+    }
     func hover(_ inside: Bool) {
+        // macOS sends spurious "entered" events when windows appear (setup opening, app launch); only
+        // count one when the pointer is really over the pill, or the auto-collapse gets cancelled.
+        if inside, let frame = pillWindow?.frame, !frame.contains(NSEvent.mouseLocation) { return }
         collapseWork?.cancel()
         if inside {
             withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) { expanded = true }
@@ -612,9 +752,35 @@ struct BigButton: View {
             }
             .frame(maxWidth: .infinity).padding(.vertical, 11)
         }
-        .buttonStyle(.borderedProminent)
-        .tint(filled ? color : Color(nsColor: .controlColor))
-        .foregroundStyle(filled ? idealText(on: color) : Color.primary)
+        .buttonStyle(PillButtonStyle(fill: filled ? color : Color.primary.opacity(0.10),
+                                     text: filled ? idealText(on: color) : Color.primary))
+    }
+}
+
+/// Explicit colors: the pill is a non-activating panel, so system prominent buttons would render
+/// in their inactive gray instead of the accent.
+struct PillButtonStyle: ButtonStyle {
+    let fill: Color
+    let text: Color
+
+    func makeBody(configuration: Configuration) -> some View {
+        StyledLabel(configuration: configuration, fill: fill, text: text)
+    }
+
+    private struct StyledLabel: View {
+        let configuration: ButtonStyleConfiguration
+        let fill: Color
+        let text: Color
+        @Environment(\.isEnabled) private var isEnabled
+
+        var body: some View {
+            configuration.label
+                .foregroundStyle(text)
+                .background(RoundedRectangle(cornerRadius: 10).fill(fill))
+                .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(.white.opacity(0.10)))
+                .contentShape(RoundedRectangle(cornerRadius: 10))
+                .opacity(isEnabled ? (configuration.isPressed ? 0.78 : 1) : 0.45)
+        }
     }
 }
 
@@ -623,8 +789,8 @@ struct PillView: View {
     @StateObject private var gallery = Gallery()
     @StateObject private var destinations = DestinationStore.shared
     @State private var copied = ""
-    @AppStorage("shotpill.dest") private var dest = "work"
-    @AppStorage("shotpill.accentIndex") private var accentIndex = 0
+    @AppStorage("dotshot.dest") private var dest = "work"
+    @AppStorage("dotshot.accentIndex") private var accentIndex = 0
     private var accent: Color { PRESETS[min(max(accentIndex, 0), PRESETS.count - 1)] }
     @State private var dropMode = false
 
@@ -635,35 +801,45 @@ struct PillView: View {
             else { collapsed }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-        .onHover { if !dropMode { state.hover($0) } }
+        .onHover { if !dropMode && DEMO.pinnedState == nil { state.hover($0) } }
         .onDrop(of: [UTType.fileURL], isTargeted: Binding(
             get: { dropMode },
             set: { over in withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { dropMode = over } }
         )) { providers, location in handleDrop(providers, at: location) }
         .onChange(of: state.expanded) { _, v in
-            if !dropMode { resizePill(v ? EXPANDED : COLLAPSED); if v { gallery.load() } }
+            if !dropMode { resizePill(v ? EXPANDED : COLLAPSED); if v { gallery.load(); DestinationStore.shared.reload() } }
         }
         .onChange(of: dropMode) { _, v in
-            resizePill(v ? QUADRANT : (state.expanded ? EXPANDED : COLLAPSED))
+            resizePill(v ? dropGridSize(destinations.items.count) : (state.expanded ? EXPANDED : COLLAPSED))
         }
         .onAppear {
             if !destinations.items.contains(where: { $0.id == dest }) {
                 dest = destinations.items.first?.id ?? "work"
             }
             gallery.load()
-            resizePill(EXPANDED)
-            state.autoCollapse(after: 6.0)
+            switch DEMO.pinnedState {
+            case "collapsed":
+                state.expanded = false
+                resizePill(COLLAPSED)
+            case "drop":
+                dropMode = true
+                resizePill(dropGridSize(destinations.items.count))
+            case "expanded":
+                resizePill(EXPANDED)
+            default:
+                resizePill(EXPANDED)
+                // Setup may already be open (a dotshot:// link launched the app); don't cover it.
+                state.autoCollapse(after: SetupController.shared.isVisible ? 0.3 : 6.0)
+            }
         }
     }
 
     // Map the drop point to a quadrant → host, then ship each dropped file there.
     private func handleDrop(_ providers: [NSItemProvider], at loc: CGPoint) -> Bool {
-        let col = loc.x < QUADRANT.width / 2 ? 0 : 1
-        let row = loc.y < QUADRANT.height / 2 ? 0 : 1
-        let dropDestinations = Array(destinations.items.prefix(4))
-        let index = row * 2 + col
-        guard index < dropDestinations.count else { return false }
-        let host = dropDestinations[index].id
+        guard let index = DropGrid.tileIndex(at: loc, in: dropGridSize(destinations.items.count), count: destinations.items.count) else {
+            return false
+        }
+        let host = destinations.items[index].id
         for p in providers {
             _ = p.loadObject(ofClass: URL.self) { url, _ in
                 if let u = url { sendFile(u.path, to: host) }
@@ -674,14 +850,28 @@ struct PillView: View {
     }
 
     var quadrant: some View {
-        LazyVGrid(columns: [GridItem(.flexible(), spacing: 6), GridItem(.flexible())], spacing: 6) {
-            ForEach(Array(destinations.items.prefix(4).enumerated()), id: \.element.id) { index, destination in
-                tile(destination, colorIndex: index)
+        let tiles = Array(destinations.items.prefix(DropGrid.maxTiles).enumerated())
+        let columns = DropGrid.columns(for: tiles.count)
+        return VStack(spacing: 6) {
+            if tiles.isEmpty {
+                Text("Add a destination in setup").font(.system(size: 13, weight: .semibold)).foregroundStyle(SECONDARY_TEXT)
+            }
+            ForEach(0..<DropGrid.rows(for: tiles.count), id: \.self) { row in
+                HStack(spacing: 6) {
+                    ForEach(0..<columns, id: \.self) { column in
+                        let index = row * columns + column
+                        if index < tiles.count {
+                            tile(tiles[index].element, colorIndex: index)
+                        } else {
+                            Color.clear.frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
+                    }
+                }
             }
         }
         .padding(10)
-        .frame(width: QUADRANT.width, height: QUADRANT.height)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .frame(width: dropGridSize(tiles.count).width, height: dropGridSize(tiles.count).height)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(.white.opacity(0.12)))
         .shadow(color: .black.opacity(0.32), radius: 18, y: 8)
     }
@@ -734,9 +924,9 @@ struct PillView: View {
                 } label: {
                     Image(systemName: "gearshape.fill").font(.system(size: 13))
                 }
-                .buttonStyle(.plain).foregroundStyle(.secondary)
+                .buttonStyle(.plain).foregroundStyle(SECONDARY_TEXT)
                 Button { NSApp.terminate(nil) } label: { Image(systemName: "xmark.circle.fill").font(.system(size: 14)) }
-                    .buttonStyle(.plain).foregroundStyle(.secondary)
+                    .buttonStyle(.plain).foregroundStyle(SECONDARY_TEXT)
             }
             HStack(spacing: 10) {
                 BigButton(title: "Shot", icon: "camera.fill", filled: true,  color: accent) { runCapture("image", dest) }
@@ -754,12 +944,12 @@ struct PillView: View {
                 Spacer()
                 Text("⌃⌥⌘S Shot  ·  ⌃⌥⌘V Vid")
                     .font(.system(size: 9.5, weight: .medium))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(SECONDARY_TEXT)
             }
             if !gallery.items.isEmpty {
                 Text(copied.isEmpty ? "RECENT — click to copy name" : "Copied \(copied)")
                     .font(.system(size: 10.5, weight: .semibold))
-                    .foregroundStyle(copied.isEmpty ? Color.secondary : accent)
+                    .foregroundStyle(copied.isEmpty ? SECONDARY_TEXT : accent)
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 7) {
                         ForEach(gallery.items) { it in
@@ -791,11 +981,19 @@ struct PillView: View {
                     }
                 }
                 .frame(height: 72)
+            } else {
+                // Keeps the pill's height steady before the first capture instead of leaving a blank band.
+                Text("RECENT").font(.system(size: 10.5, weight: .semibold)).foregroundStyle(SECONDARY_TEXT)
+                Text("Your captures will appear here. Press ⌃⌥⌘S to take the first one.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(SECONDARY_TEXT)
+                    .frame(maxWidth: .infinity, minHeight: 72)
+                    .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 8))
             }
         }
         .padding(16)
         .frame(width: EXPANDED.width, height: EXPANDED.height)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18))
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
         .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(.white.opacity(0.12)))
         .shadow(color: .black.opacity(0.32), radius: 18, y: 8)
     }
@@ -805,11 +1003,24 @@ enum SetupStep: Int, CaseIterable, Identifiable {
     case welcome, permissions, connect, destinations, test, login, appearance, done
 
     var id: Int { rawValue }
+    static func named(_ name: String) -> SetupStep? {
+        allCases.first { String(describing: $0) == name.lowercased() }
+    }
+    /// Labels once first-time setup is done and the window is dotshot's Settings.
+    var settingsTitle: String {
+        switch self {
+        case .welcome: "About"
+        case .test: "Test Capture"
+        case .done: "Shortcuts"
+        default: title
+        }
+    }
+
     var title: String {
         switch self {
-        case .welcome: "Why Shot Pill"
+        case .welcome: "Why dotshot"
         case .permissions: "Permission"
-        case .connect: "Connect Devices"
+        case .connect: "SSH Access"
         case .destinations: "Destinations"
         case .test: "First Capture"
         case .login: "Launch at Login"
@@ -844,10 +1055,10 @@ struct SetupView: View {
     @State private var loginMessage = ""
     @State private var sshSetupMessage = ""
     @State private var sshRefreshToken = 0
-    @AppStorage("shotpill.accentIndex") private var accentIndex = 0
-    @AppStorage("shotpill.position") private var position = "bottomRight"
-    @AppStorage("shotpill.displayName") private var displayName = ""
-    @AppStorage("shotpill.inset") private var inset = 24.0
+    @AppStorage("dotshot.accentIndex") private var accentIndex = 0
+    @AppStorage("dotshot.position") private var position = "bottomRight"
+    @AppStorage("dotshot.displayName") private var displayName = ""
+    @AppStorage("dotshot.inset") private var inset = 24.0
 
     private var accent: Color { PRESETS[min(max(accentIndex, 0), PRESETS.count - 1)] }
     private var publicKeyURL: URL? {
@@ -884,26 +1095,20 @@ struct SetupView: View {
                     .padding(.vertical, 18)
             }
         }
-        .frame(width: 840, height: 610)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24))
-        .overlay(RoundedRectangle(cornerRadius: 24).strokeBorder(.white.opacity(0.14)))
-        .overlay(alignment: .topTrailing) {
-            Button(action: onFinish) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 11, weight: .bold))
-                    .frame(width: 25, height: 25)
-                    .background(Color.primary.opacity(0.07), in: Circle())
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            .keyboardShortcut(.cancelAction)
-            .padding(18)
+        .frame(minWidth: 840, minHeight: 610)
+        // Hidden button so Escape and ⌘W close the window like any settings pane.
+        .background {
+            Button("Close", action: onFinish).keyboardShortcut(.cancelAction).hidden()
+            Button("Close", action: onFinish).keyboardShortcut("w", modifiers: .command).hidden()
         }
-        .shadow(color: .black.opacity(0.4), radius: 28, y: 14)
     }
+
+    /// After first-time setup, the same window is dotshot's Settings: sections instead of numbered steps.
+    private var isSettings: Bool { UserDefaults.standard.bool(forKey: "dotshot.onboardingComplete") }
 
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 8) {
+            Color.clear.frame(height: 22)  // the window's traffic lights sit here
             HStack(spacing: 10) {
                 Image(systemName: "camera.viewfinder")
                     .font(.system(size: 17, weight: .bold))
@@ -911,8 +1116,8 @@ struct SetupView: View {
                     .frame(width: 34, height: 34)
                     .background(accent, in: Circle())
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("Shot Pill").font(.system(size: 15, weight: .bold))
-                    Text("SETUP").font(.system(size: 9, weight: .bold)).tracking(1.2).foregroundStyle(.secondary)
+                    Text("dotshot").font(.system(size: 15, weight: .bold))
+                    Text("\(isSettings ? "SETTINGS" : "SETUP") · v\(Brand.version)").font(.system(size: 9, weight: .bold)).tracking(1.2).foregroundStyle(SECONDARY_TEXT)
                 }
             }
             .padding(.bottom, 16)
@@ -924,12 +1129,16 @@ struct SetupView: View {
                     HStack(spacing: 10) {
                         Image(systemName: item.icon)
                             .frame(width: 18)
-                        Text(item.title)
+                        Text(isSettings ? item.settingsTitle : item.title)
                             .font(.system(size: 12.5, weight: step == item ? .semibold : .regular))
                             .lineLimit(1)
-                            .minimumScaleFactor(0.85)
                         Spacer()
-                        if item.rawValue < step.rawValue {
+                        if item == .permissions && !screenPermission && (isSettings || step.rawValue > item.rawValue) {
+                            // Visited but not granted: don't show a tick that reads as "done".
+                            Image(systemName: "exclamationmark.circle.fill")
+                                .font(.system(size: 11))
+                                .foregroundStyle(STATUS_WARN)
+                        } else if !isSettings, item.rawValue < step.rawValue {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.system(size: 11))
                                 .foregroundStyle(accent)
@@ -941,17 +1150,17 @@ struct SetupView: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(step == item ? Color.primary : Color.secondary)
+                .foregroundStyle(step == item ? Color.primary : SECONDARY_TEXT)
             }
             Spacer()
             Text("Settings can be reopened from the gear on the expanded pill.")
                 .font(.system(size: 10.5))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(SECONDARY_TEXT)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(24)
-        .frame(width: 210)
-        .background(Color.black.opacity(0.10))
+        .frame(width: 236)
+        .background(Color.primary.opacity(0.06))
     }
 
     @ViewBuilder private var stepContent: some View {
@@ -979,22 +1188,22 @@ struct SetupView: View {
         VStack(alignment: .leading, spacing: 22) {
             setupHeading(
                 "Capture here. Let your agents use it there.",
-                "Shot Pill delivers visual context from this Mac to every machine in your coding fleet—without uploads, inboxes, or broken focus."
+                "dotshot delivers visual context from this Mac to every machine in your coding fleet—without uploads, inboxes, or broken focus."
             )
             HStack(spacing: 12) {
                 flowCard("1", "Capture", "Take a screenshot or recording from any app.", "camera.viewfinder")
                 Image(systemName: "arrow.right")
                     .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(.tertiary)
-                flowCard("2", "Deliver", "Shot Pill names it and sends it over SSH.", "paperplane.fill")
+                    .foregroundStyle(Color.primary.opacity(0.5))
+                flowCard("2", "Deliver", "dotshot names it and sends it over SSH.", "paperplane.fill")
                 Image(systemName: "arrow.right")
                     .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(Color.primary.opacity(0.5))
                 flowCard("3", "Use", "The remote path is copied, ready for your agent.", "terminal.fill")
             }
             callout(
                 "Private by design",
-                "Files travel through your existing SSH or Tailscale connection. There is no Shot Pill account, cloud inbox, receiving service, telemetry, or API key.",
+                "Files travel through your existing SSH or Tailscale connection. There is no dotshot account, cloud inbox, receiving service, telemetry, or API key.",
                 "lock.shield.fill"
             )
         }
@@ -1006,15 +1215,15 @@ struct SetupView: View {
             HStack(spacing: 14) {
                 Image(systemName: screenPermission ? "checkmark.shield.fill" : "lock.shield")
                     .font(.system(size: 34))
-                    .foregroundStyle(screenPermission ? Color.green : accent)
+                    .foregroundStyle(screenPermission ? STATUS_OK : accent)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(screenPermission ? "Permission granted" : "Permission still needed")
                         .font(.system(size: 16, weight: .semibold))
                     Text(screenPermission
-                        ? "Shot Pill can capture your selected screen content."
-                        : "Approve Shot Pill in Privacy & Security → Screen & System Audio Recording.")
+                        ? "dotshot can capture your selected screen content."
+                        : "Approve dotshot in Privacy & Security → Screen & System Audio Recording.")
                         .font(.system(size: 12.5))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(SECONDARY_TEXT)
                 }
             }
             .padding(18)
@@ -1027,17 +1236,19 @@ struct SetupView: View {
                         screenPermission = CGPreflightScreenCaptureAccess()
                     }
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(accent)
+                .buttonStyle(AccentButtonStyle(color: accent))
+                Button("Check Again") {
+                    screenPermission = CGPreflightScreenCaptureAccess()
+                }
                 Button("Open Privacy Settings") {
                     if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
                         NSWorkspace.shared.open(url)
                     }
                 }
             }
-            Text("macOS may require Shot Pill to be relaunched after approval. The installer uses a stable signing identity so permission survives future local rebuilds.")
+            Text("macOS may ask you to quit and reopen dotshot after approval. If the status does not change, relaunch dotshot and press Check Again.")
                 .font(.system(size: 11.5))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(SECONDARY_TEXT)
         }
     }
 
@@ -1045,7 +1256,7 @@ struct SetupView: View {
         VStack(alignment: .leading, spacing: 14) {
             setupHeading(
                 "Connect this Mac to your other devices",
-                "Shot Pill uses normal SSH key authentication. You do not need an SSH alias, Tailscale, a server, or a Shot Pill account."
+                "dotshot uses normal SSH key authentication. You do not need an SSH alias, Tailscale, a server, or a dotshot account."
             )
 
             HStack(alignment: .top, spacing: 12) {
@@ -1063,7 +1274,7 @@ struct SetupView: View {
                 )
                 completionCard(
                     "3. Authorize it",
-                    "Install this Mac’s public key once. Shot Pill can then transfer without password prompts.",
+                    "Install this Mac’s public key once. dotshot can then transfer without password prompts.",
                     "person.badge.key.fill"
                 )
             }
@@ -1072,18 +1283,16 @@ struct SetupView: View {
                 if publicKeyURL == nil {
                     Button("Copy Key Creation Command") {
                         copyToClipboard(
-                            "ssh-keygen -t ed25519 -C \"shot-pill@\(Host.current().localizedName ?? "mac")\"",
+                            "ssh-keygen -t ed25519 -C \"dotshot@\(Host.current().localizedName ?? "mac")\"",
                             confirmation: "Key creation command copied"
                         )
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(accent)
+                    .buttonStyle(AccentButtonStyle(color: accent))
                 } else {
                     Button("Copy Public Key") {
                         copyPublicKey()
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(accent)
+                    .buttonStyle(AccentButtonStyle(color: accent))
                 }
                 Button("Open Terminal") { openTerminal() }
                 Button("Refresh") {
@@ -1102,10 +1311,10 @@ struct SetupView: View {
             )
             Text("Tailscale: use the destination’s MagicDNS name or 100.x address. Both devices must share a tailnet, with regular SSH or Tailscale SSH enabled on the destination.")
                 .font(.system(size: 11.5))
-                .foregroundStyle(.secondary)
-            Text("Next, enter the address and press Test. If the key is rejected, Shot Pill offers an authorization command that asks for the destination password once.")
+                .foregroundStyle(SECONDARY_TEXT)
+            Text("Next, enter the address and press Test. If the key is rejected, dotshot offers an authorization command that asks for the destination password once.")
                 .font(.system(size: 11.5))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(SECONDARY_TEXT)
         }
     }
 
@@ -1124,7 +1333,7 @@ struct SetupView: View {
                 }
                 .font(.system(size: 9.5, weight: .bold))
                 .tracking(0.6)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(SECONDARY_TEXT)
 
                 ForEach(draftDestinations.indices, id: \.self) { index in
                     HStack(spacing: 8) {
@@ -1144,12 +1353,12 @@ struct SetupView: View {
                         .disabled(draftDestinations[index].host.isEmpty || draftDestinations[index].remotePath.isEmpty)
                         Button {
                             draftDestinations.remove(at: index)
-                            testStatus.removeValue(forKey: index)
+                            testStatus = [:]  // statuses are keyed by row index
                         } label: {
                             Image(systemName: "minus.circle.fill")
                         }
                         .buttonStyle(.plain)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(SECONDARY_TEXT)
                         .disabled(draftDestinations.count == 1)
                     }
                     .textFieldStyle(.roundedBorder)
@@ -1166,7 +1375,7 @@ struct SetupView: View {
                             Spacer()
                             Text(status)
                                 .font(.system(size: 10.5, weight: .medium))
-                                .foregroundStyle(status.hasPrefix("Ready") ? Color.green : (status == "Testing…" ? Color.secondary : Color.orange))
+                                .foregroundStyle(status.hasPrefix("Ready") ? STATUS_OK : (status == "Testing…" ? SECONDARY_TEXT : STATUS_WARN))
                         }
                     }
                 }
@@ -1186,11 +1395,10 @@ struct SetupView: View {
                         .foregroundStyle(saveMessage == "Saved" ? Color.green : Color.orange)
                 }
                 Button("Save") { saveDestinations() }
-                    .buttonStyle(.borderedProminent)
-                    .tint(accent)
+                    .buttonStyle(AccentButtonStyle(color: accent))
             }
             callout(
-                "Test before continuing",
+                isSettings ? "Test after changes" : "Test before continuing",
                 "Test checks the host, key authentication, and folder separately. It creates the folder when allowed and converts ~/inbound into an absolute path your agent can use.",
                 "checkmark.shield.fill"
             )
@@ -1199,22 +1407,21 @@ struct SetupView: View {
 
     private var testStep: some View {
         VStack(alignment: .leading, spacing: 22) {
-            setupHeading("Complete your first capture", "This is the whole Shot Pill loop: capture here, deliver there, then give the copied path to your agent.")
+            setupHeading("Complete your first capture", "This is the whole dotshot loop: capture here, deliver there, then give the copied path to your agent.")
             VStack(alignment: .leading, spacing: 14) {
                 tutorialRow("1", "Press ⌃⌥⌘S from any app—or click the button below.")
                 tutorialRow("2", "Drag around a harmless test area, then release.")
-                tutorialRow("3", "Wait for “Sent.” Shot Pill names the image and copies its remote path.")
+                tutorialRow("3", "Wait for “Sent.” dotshot names the image and copies its remote path.")
                 tutorialRow("4", "In your agent, paste the path with a request such as “Review this screenshot.”")
             }
             HStack {
                 Button {
                     saveDestinations()
-                    runCapture("image", selectedDestination())
+                    runCapture("image")
                 } label: {
                     Label("Take Test Shot", systemImage: "camera.fill")
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(accent)
+                .buttonStyle(AccentButtonStyle(color: accent))
                 Button("Open Local Shots") {
                     NSWorkspace.shared.open(URL(fileURLWithPath: SHOTS))
                 }
@@ -1230,7 +1437,7 @@ struct SetupView: View {
 
     private var loginStep: some View {
         VStack(alignment: .leading, spacing: 22) {
-            setupHeading("Launch at Login", "Register Shot Pill with macOS so the camera nub is ready after every sign-in.")
+            setupHeading("Launch at Login", "Register dotshot with macOS so the camera nub is ready after every sign-in.")
             HStack(spacing: 14) {
                 Image(systemName: loginStatus == .enabled ? "checkmark.circle.fill" : "power")
                     .font(.system(size: 34))
@@ -1239,7 +1446,7 @@ struct SetupView: View {
                     Text(loginStatusText).font(.system(size: 16, weight: .semibold))
                     Text("macOS keeps the final approval under System Settings → General → Login Items.")
                         .font(.system(size: 12.5))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(SECONDARY_TEXT)
                 }
             }
             .padding(18)
@@ -1249,8 +1456,7 @@ struct SetupView: View {
                 Button(loginStatus == .enabled ? "Disable Launch at Login" : "Enable Launch at Login") {
                     updateLoginItem(enable: loginStatus != .enabled)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(accent)
+                .buttonStyle(AccentButtonStyle(color: accent))
                 Button("Open Login Items") {
                     SMAppService.openSystemSettingsLoginItems()
                 }
@@ -1267,7 +1473,7 @@ struct SetupView: View {
         VStack(alignment: .leading, spacing: 22) {
             setupHeading("Make it yours", "Choose the accent, display, corner, and edge inset for the collapsed camera nub.")
             VStack(alignment: .leading, spacing: 10) {
-                Text("ACCENT").font(.system(size: 10, weight: .bold)).tracking(0.8).foregroundStyle(.secondary)
+                Text("ACCENT").font(.system(size: 10, weight: .bold)).tracking(0.8).foregroundStyle(SECONDARY_TEXT)
                 HStack(spacing: 10) {
                     ForEach(Array(PRESETS.enumerated()), id: \.offset) { index, color in
                         Circle()
@@ -1281,17 +1487,18 @@ struct SetupView: View {
             }
             HStack(alignment: .top, spacing: 26) {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("DISPLAY").font(.system(size: 10, weight: .bold)).tracking(0.8).foregroundStyle(.secondary)
+                    Text("DISPLAY").font(.system(size: 10, weight: .bold)).tracking(0.8).foregroundStyle(SECONDARY_TEXT)
                     Picker("", selection: $displayName) {
                         ForEach(NSScreen.screens, id: \.localizedName) { screen in
                             Text(screen.localizedName).tag(screen.localizedName)
                         }
                     }
                     .labelsHidden()
-                    .frame(width: 230)
+                    .fixedSize()
+                    .frame(width: 230, alignment: .leading)
                 }
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("CORNER").font(.system(size: 10, weight: .bold)).tracking(0.8).foregroundStyle(.secondary)
+                    Text("CORNER").font(.system(size: 10, weight: .bold)).tracking(0.8).foregroundStyle(SECONDARY_TEXT)
                     HStack(spacing: 8) {
                         cornerButton("topLeft", "arrow.up.left")
                         cornerButton("topRight", "arrow.up.right")
@@ -1302,11 +1509,12 @@ struct SetupView: View {
             }
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Text("EDGE INSET").font(.system(size: 10, weight: .bold)).tracking(0.8).foregroundStyle(.secondary)
+                    Text("EDGE INSET").font(.system(size: 10, weight: .bold)).tracking(0.8).foregroundStyle(SECONDARY_TEXT)
                     Spacer()
-                    Text("\(Int(inset)) px").font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
+                    Text("\(Int(inset)) px").font(.system(size: 11, design: .monospaced)).foregroundStyle(SECONDARY_TEXT)
                 }
                 Slider(value: $inset, in: 0...48, step: 2)
+                    .tint(accent)
             }
             .onChange(of: inset) { _, _ in repositionPill() }
             .onChange(of: displayName) { _, _ in repositionPill() }
@@ -1323,14 +1531,33 @@ struct SetupView: View {
             VStack(alignment: .leading, spacing: 14) {
                 summaryRow("Screenshot", "⌃⌥⌘S", "camera.fill")
                 summaryRow("Screen recording", "⌃⌥⌘V", "video.fill")
-                summaryRow("Automation", "shotpill://image?dest=work", "link")
+                summaryRow("Automation", "dotshot://image?dest=\(currentDestination() ?? "work")", "link")
                 summaryRow("Settings", "Hover → gear", "gearshape.fill")
             }
-            callout("One privacy reminder", "Captures may contain sensitive information. Shot Pill saves a local copy in ~/Shots and transfers only to destinations you configure.", "hand.raised.fill")
+            callout("One privacy reminder", "Captures may contain sensitive information. dotshot saves a local copy in ~/Shots and transfers only to destinations you configure.", "hand.raised.fill")
         }
     }
 
-    private var footer: some View {
+    @ViewBuilder private var footer: some View {
+        if isSettings {
+            HStack {
+                if step == .destinations, !saveMessage.isEmpty {
+                    Text(saveMessage).font(.system(size: 11.5)).foregroundStyle(SECONDARY_TEXT)
+                }
+                Spacer()
+                Button("Done") {
+                    if step == .destinations { guard saveDestinations() else { return } }
+                    onFinish()
+                }
+                .buttonStyle(AccentButtonStyle(color: accent))
+                .keyboardShortcut(.defaultAction)
+            }
+        } else {
+            onboardingFooter
+        }
+    }
+
+    private var onboardingFooter: some View {
         HStack {
             if step != .welcome {
                 Button("Back") {
@@ -1340,10 +1567,9 @@ struct SetupView: View {
             Spacer()
             Text("\(step.rawValue + 1) of \(SetupStep.allCases.count)")
                 .font(.system(size: 11, design: .monospaced))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(SECONDARY_TEXT)
             Button(step == .done ? "Finish" : "Continue") { advance() }
-                .buttonStyle(.borderedProminent)
-                .tint(accent)
+                .buttonStyle(AccentButtonStyle(color: accent))
                 .keyboardShortcut(.defaultAction)
         }
     }
@@ -1351,7 +1577,7 @@ struct SetupView: View {
     private func setupHeading(_ title: String, _ subtitle: String) -> some View {
         VStack(alignment: .leading, spacing: 7) {
             Text(title).font(.system(size: 25, weight: .bold))
-            Text(subtitle).font(.system(size: 13.5)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            Text(subtitle).font(.system(size: 13.5)).foregroundStyle(SECONDARY_TEXT).fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -1371,7 +1597,7 @@ struct SetupView: View {
             Text(title).font(.system(size: 14.5, weight: .semibold))
             Text(subtitle)
                 .font(.system(size: 11.5))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(SECONDARY_TEXT)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(15)
@@ -1383,7 +1609,7 @@ struct SetupView: View {
         VStack(alignment: .leading, spacing: 9) {
             Image(systemName: icon).font(.system(size: 24)).foregroundStyle(accent)
             Text(title).font(.system(size: 15, weight: .semibold))
-            Text(subtitle).font(.system(size: 11.5)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            Text(subtitle).font(.system(size: 11.5)).foregroundStyle(SECONDARY_TEXT).fixedSize(horizontal: false, vertical: true)
         }
         .padding(18)
         .frame(maxWidth: .infinity, minHeight: 132, alignment: .topLeading)
@@ -1395,10 +1621,11 @@ struct SetupView: View {
             Image(systemName: icon).font(.system(size: 16, weight: .semibold)).foregroundStyle(accent).frame(width: 24)
             VStack(alignment: .leading, spacing: 3) {
                 Text(title).font(.system(size: 12.5, weight: .semibold))
-                Text(text).font(.system(size: 11.5)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                Text(text).font(.system(size: 11.5)).foregroundStyle(SECONDARY_TEXT).fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
     }
 
@@ -1418,7 +1645,7 @@ struct SetupView: View {
             Image(systemName: icon).foregroundStyle(accent).frame(width: 24)
             Text(title).font(.system(size: 13, weight: .medium))
             Spacer()
-            Text(value).font(.system(size: 12, design: .monospaced)).foregroundStyle(.secondary)
+            Text(value).font(.system(size: 12, design: .monospaced)).foregroundStyle(SECONDARY_TEXT)
         }
         .padding(.vertical, 4)
     }
@@ -1431,7 +1658,7 @@ struct SetupView: View {
                 .font(.system(size: 15, weight: .semibold))
                 .frame(width: 34, height: 30)
                 .background(position == value ? accent : Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
-                .foregroundStyle(position == value ? idealText(on: accent) : Color.secondary)
+                .foregroundStyle(position == value ? idealText(on: accent) : SECONDARY_TEXT)
         }
         .buttonStyle(.plain)
     }
@@ -1440,7 +1667,7 @@ struct SetupView: View {
         switch loginStatus {
         case .enabled: "Launch at Login is enabled"
         case .requiresApproval: "Approval is required in System Settings"
-        case .notFound: "macOS could not find this app"
+        case .notFound: "Not registered yet"
         default: "Launch at Login is off"
         }
     }
@@ -1448,14 +1675,14 @@ struct SetupView: View {
     private func advance() {
         if step == .destinations {
             guard saveDestinations() else { return }
-            if !UserDefaults.standard.bool(forKey: "shotpill.onboardingComplete"),
+            if !UserDefaults.standard.bool(forKey: "dotshot.onboardingComplete"),
                !testStatus.values.contains(where: { $0.hasPrefix("Ready") }) {
                 saveMessage = "Test at least one destination to complete first-time setup"
                 return
             }
         }
         if step == .done {
-            UserDefaults.standard.set(true, forKey: "shotpill.onboardingComplete")
+            UserDefaults.standard.set(true, forKey: "dotshot.onboardingComplete")
             DestinationStore.shared.reload()
             onFinish()
             return
@@ -1468,10 +1695,10 @@ struct SetupView: View {
         let saved = DestinationStore.shared.save(draftDestinations)
         saveMessage = saved
             ? "Saved"
-            : "Use unique names, a host without spaces, and an absolute or ~/ folder"
+            : "Use unique one-word names, a host without spaces, and an absolute or ~/ folder"
         if saved {
-            let current = selectedDestination()
-            UserDefaults.standard.set(current, forKey: "shotpill.dest")
+            let current = currentDestination() ?? ""
+            UserDefaults.standard.set(current, forKey: "dotshot.dest")
         }
         return saved
     }
@@ -1479,26 +1706,29 @@ struct SetupView: View {
     private func testDestination(at index: Int) {
         guard draftDestinations.indices.contains(index) else { return }
         let destination = draftDestinations[index]
-        guard !destination.host.isEmpty,
-              !destination.host.hasPrefix("-"),
-              destination.host.rangeOfCharacter(from: .whitespacesAndNewlines) == nil else {
+        guard DestinationFormat.isValidHost(destination.host) else {
             testStatus[index] = "Invalid address — use username@hostname or an SSH alias"
             return
         }
-        guard destination.remotePath == "~"
-                || destination.remotePath.hasPrefix("~/")
-                || destination.remotePath.hasPrefix("/") else {
-            testStatus[index] = "Invalid folder — use an absolute path or ~/folder"
+        guard DestinationFormat.isValidRemotePath(destination.remotePath) else {
+            testStatus[index] = "Invalid folder — use a dedicated folder such as ~/inbound or /srv/inbound"
             return
         }
         testStatus[index] = "Testing…"
         let targetExpression = remotePathExpression(destination.remotePath)
+        // New folders are private (umask 077). A folder other accounts can write to is refused: they
+        // could plant symlinks under names dotshot writes. One other accounts can read gets a warning.
         let remoteCommand = """
+        umask 077
         target=\(targetExpression)
         mkdir -p "$target" || exit 20
         test -d "$target" || exit 21
         test -w "$target" || exit 22
-        cd "$target" && pwd -P
+        test -O "$target" || exit 23
+        cd "$target" || exit 21
+        [ -z "$(find . -maxdepth 0 \\( -perm -g+w -o -perm -o+w \\) -print)" ] || exit 24
+        [ -z "$(find . -maxdepth 0 \\( -perm -g+r -o -perm -o+r \\) -print)" ] || echo dotshot-shared-folder
+        pwd -P
         """
 
         DispatchQueue.global(qos: .userInitiated).async {
@@ -1508,8 +1738,9 @@ struct SetupView: View {
             process.arguments = [
                 "-o", "BatchMode=yes",
                 "-o", "NumberOfPasswordPrompts=0",
+                "-o", "StrictHostKeyChecking=yes",
                 "-o", "ConnectTimeout=7",
-                destination.host,
+                "--", destination.host,
                 remoteCommand
             ]
             process.standardOutput = output
@@ -1524,11 +1755,19 @@ struct SetupView: View {
                     .split(whereSeparator: \.isNewline)
                     .map(String.init)
                     .last(where: { $0.hasPrefix("/") })
-                let result = destinationTestMessage(
+                var result = destinationTestMessage(
                     status: process.terminationStatus,
                     detail: detail,
                     resolvedPath: resolvedPath
                 )
+                if process.terminationStatus == 0, let resolvedPath {
+                    if !sftpWorks(host: destination.host, folder: resolvedPath) {
+                        result += ". SFTP is off, so dotshot sends over plain ssh instead"
+                    }
+                    if detail.contains("dotshot-shared-folder") {
+                        result += ". Other accounts there can read it; run chmod 700 on it for privacy"
+                    }
+                }
                 DispatchQueue.main.async {
                     guard draftDestinations.indices.contains(index),
                           draftDestinations[index].host == destination.host else { return }
@@ -1554,6 +1793,10 @@ struct SetupView: View {
             return "Folder invalid — the path exists but is not a directory"
         case 22:
             return "Folder read-only — choose a path this account can write to"
+        case 23:
+            return "Folder owned by another account — choose a folder this account owns"
+        case 24:
+            return "Folder shared — other accounts can write to it; use a private folder (chmod 700)"
         default:
             break
         }
@@ -1573,7 +1816,7 @@ struct SetupView: View {
             return "Key rejected — authorize this Mac’s public key on the destination"
         }
         if message.contains("host key verification failed") {
-            return "Identity check needed — connect once with ssh in Terminal"
+            return "Unknown host key — connect once with ssh in Terminal and check the fingerprint against the destination before accepting"
         }
         if message.contains("remote host identification has changed") {
             return "Host identity changed — review the warning in Terminal before continuing"
@@ -1584,16 +1827,26 @@ struct SetupView: View {
         return "Connection failed — try ssh \(detail.isEmpty ? "in Terminal for details" : "to this device in Terminal")"
     }
 
-    private func remotePathExpression(_ path: String) -> String {
-        if path == "~" { return "\"$HOME\"" }
-        if path.hasPrefix("~/") {
-            return "\"$HOME\"/" + shellSingleQuote(String(path.dropFirst(2)))
+    /// True when the destination accepts SFTP, which scp uses. Without it the script falls back to ssh.
+    private func sftpWorks(host: String, folder: String) -> Bool {
+        let process = Process()
+        let input = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/sftp")
+        process.arguments = ["-q", "-b", "-", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes",
+                             "-o", "ConnectTimeout=7", "--", host]
+        process.standardInput = input
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        do {
+            try process.run()
+            let quoted = "\"" + folder.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") + "\""
+            input.fileHandleForWriting.write("cd \(quoted)\n".data(using: .utf8)!)
+            try? input.fileHandleForWriting.close()
+            process.waitUntilExit()
+            return process.terminationStatus == 0
+        } catch {
+            return false
         }
-        return shellSingleQuote(path)
-    }
-
-    private func shellSingleQuote(_ value: String) -> String {
-        "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
     private func copyPublicKey() {
@@ -1653,7 +1906,9 @@ struct SetupView: View {
     }
 }
 
-final class SetupPanel: NSPanel {
+/// A plain window, not a panel: panels hide when dotshot loses focus, and setup has to stay put while you
+/// switch to System Settings to grant permission.
+final class SetupPanel: NSWindow {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
 }
@@ -1661,28 +1916,37 @@ final class SetupPanel: NSPanel {
 final class SetupController {
     static let shared = SetupController()
     private var panel: SetupPanel?
+    var isVisible: Bool { panel?.isVisible ?? false }
 
     func present(initialStep: SetupStep = .welcome) {
         panel?.close()
-        let size = NSSize(width: 868, height: 638)
+        // Show destinations added outside the app (by hand, or by an agent using the script's `add`).
+        DestinationStore.shared.reload()
+        NotificationCenter.default.post(name: .dotshotSetupPresented, object: nil)
+        // A standard window: system rounded corners and shadow, draggable, closable and minimizable, and it
+        // remembers where you put it. The titlebar is transparent so the sidebar runs to the top.
         let setupPanel = SetupPanel(
-            contentRect: NSRect(origin: .zero, size: size),
-            styleMask: [.borderless],
+            contentRect: NSRect(x: 0, y: 0, width: 840, height: 610),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
-        setupPanel.isOpaque = false
-        setupPanel.backgroundColor = .clear
-        setupPanel.hasShadow = false
-        setupPanel.level = .floating
+        setupPanel.title = UserDefaults.standard.bool(forKey: "dotshot.onboardingComplete") ? "dotshot Settings" : "dotshot Setup"
+        setupPanel.titleVisibility = .hidden
+        setupPanel.titlebarAppearsTransparent = true
+        setupPanel.isMovableByWindowBackground = true
+        setupPanel.contentMinSize = NSSize(width: 840, height: 610)
+        // Normal level, not floating: macOS shows the Screen Recording request as an alert, and a floating
+        // setup window hid it (found on a clean macOS 14 VM). Setup is activated when presented instead.
+        setupPanel.level = .normal
         setupPanel.sharingType = .readOnly
-        setupPanel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         setupPanel.isReleasedWhenClosed = false
         setupPanel.contentView = NSHostingView(rootView: SetupView(
             initialStep: initialStep,
             onFinish: { [weak self] in self?.dismiss() }
         ))
-        setupPanel.center()
+        if !setupPanel.setFrameUsingName("dotshot.settings") { setupPanel.center() }
+        setupPanel.setFrameAutosaveName("dotshot.settings")
         panel = setupPanel
         NSApp.activate(ignoringOtherApps: true)
         setupPanel.makeKeyAndOrderFront(nil)
@@ -1701,6 +1965,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ n: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        _ = Notifier.shared
         globalHotKeys = GlobalHotKeys()
         let host = NSHostingView(rootView: PillView())
         window = NSPanel(contentRect: NSRect(origin: .zero, size: EXPANDED),
@@ -1710,7 +1975,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.isOpaque = false
         window.backgroundColor = .clear
         window.hasShadow = false
-        window.sharingType = .none          // excluded from screenshots & screen recordings
+        // Excluded from screenshots & recordings, except when capturing documentation images.
+        window.sharingType = DEMO.capturable ? .readOnly : .none
         window.level = .floating
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         window.isMovableByWindowBackground = true
@@ -1720,25 +1986,36 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         pillWindow = window
         window.makeKeyAndOrderFront(nil)
 
-        if !UserDefaults.standard.bool(forKey: "shotpill.onboardingComplete")
+        // Displays come and go (docks, sleep, clamshell); keep the pill on a visible screen.
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            if let size = pillWindow?.frame.size { resizePill(size) }
+        }
+
+        if let step = DEMO.openSetupStep {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                SetupController.shared.present(initialStep: SetupStep.named(step) ?? .welcome)
+            }
+        } else if DEMO.openPicker {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { chooseRecordingSource() }
+        } else if !DEMO.suppressSetup,
+           !UserDefaults.standard.bool(forKey: "dotshot.onboardingComplete")
             || DestinationStore.shared.items.isEmpty {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                // A dotshot:// link that launched the app (e.g. setup?step=destinations) takes precedence.
+                guard !self.openedByURL else { return }
                 SetupController.shared.present(initialStep: .welcome)
             }
         }
     }
 
+    private var openedByURL = false
+
     func application(_ application: NSApplication, open urls: [URL]) {
+        openedByURL = true
         urls.forEach(runCaptureURL)
     }
 }
-
-let app = NSApplication.shared
-UserDefaults.standard.register(defaults: [
-    "shotpill.accentIndex": 0,
-    "shotpill.position": "bottomRight",
-    "shotpill.inset": 24.0
-])
-let delegate = AppDelegate()
-app.delegate = delegate
-app.run()

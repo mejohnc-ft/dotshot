@@ -8,6 +8,7 @@ func stderr(_ message: String) {
     FileHandle.standardError.write(Data((message + "\n").utf8))
 }
 
+@available(macOS, deprecated: 15.0, message: "Only used before macOS 15")
 func legacyExport(_ session: AVAssetExportSession, to output: URL) -> Never {
     session.outputURL = output
     session.outputFileType = .mov

@@ -1,160 +1,225 @@
-# Shot Pill
+# dotshot
 
 **Capture here. Let your agents use it there.**
 
-Shot Pill is visual-context delivery for agentic coding fleets. Capture a
-screenshot or recording on your Mac, send it directly to any SSH-connected
-machine, and get the remote path on your clipboard—ready for Codex, Claude Code,
-or a terminal agent.
+dotshot sends screenshots and screen recordings from your Mac straight to the
+machine where your coding agent is working, over SSH, and copies the remote path
+to your clipboard. Paste that path into Claude Code, Codex, or any terminal
+agent.
 
 ```text
-⌃⌥⌘S → select an area → image is named and delivered → remote path is copied
+⌃⌥⌘S → drag over the problem → named, delivered, path copied → paste into your agent
 ```
 
-No save dialog. No manual filename. No upload. No hunt for the file on the
-machine where your agent is working.
+![A dotshot capture delivered to a remote machine and pasted into an agent prompt](docs/images/demo.gif)
 
-When idle, Shot Pill is a 42 px camera nub in the corner. Hover to reveal
-capture controls, destinations, accent colors, and recent captures.
+There's no save dialog, no file naming, no upload, and no hunting for the file
+on the other machine. There's also no account, cloud inbox, receiving service,
+telemetry, or API key.
 
-![Shot Pill onboarding explains the capture, delivery, and agent workflow](docs/images/onboarding-welcome.png)
+[**Download for macOS**](https://github.com/mejohnc-ft/dotshot/releases/latest) · [**Watch the 80-second intro**](https://mejohnc-ft.github.io/dotshot/#intro) · [Walkthrough](docs/WALKTHROUGH.md) · [Install guide](docs/INSTALL.md) · [SSH setup](docs/SSH_SETUP.md) · [Troubleshooting](docs/TROUBLESHOOTING.md)
 
-## Why Shot Pill
+## Why
 
-If you code across a laptop, desktops, build machines, AI workstations, or a
-NAS, the screenshot is often on the wrong computer. Shot Pill turns visual
-context into a path that an agent can read immediately:
+If you code across a laptop, a desktop, a GPU box, a build machine, or a NAS,
+your screenshot usually lands on the wrong computer. dotshot turns what you see
+into a path the agent can open right away:
 
 ```text
-Review the layout issue in /home/john/inbound/settings-panel-20260726.png
+Fix the overflow in /Users/dev/inbound/network-settings-proxy-host-20260916-101400.png
 ```
 
-Files travel through your existing SSH or Tailscale connection. Shot Pill has
-no account, cloud inbox, receiving daemon, telemetry, or API key.
+Files travel over the SSH or Tailscale connection you already have. On the
+destination, dotshot needs nothing but a folder the SSH account can write to.
 
-## Highlights
+<p align="center">
+  <a href="https://mejohnc-ft.github.io/dotshot/#intro"><img src="docs/images/intro-thumb.png" width="720" alt="Watch the 80-second dotshot intro: screenshots to a Spark cluster and a ROCm cluster, a recording to a Dev Mac, eval results to a NAS, and setup"></a>
+</p>
 
-- Region screenshots with offline OCR-based filenames
-- Full-display or selected-region recordings
-- Multiple named SSH destinations and remote folders
-- Global shortcuts: `⌃⌥⌘S` for a screenshot and `⌃⌥⌘V` for recording
-- URL actions for Shortcuts, Raycast, BetterTouchTool, and scripts
-- Drag files onto the nub to send them
-- Native first-run setup, Launch at Login, display/corner placement, and accent selection
-- No server, account, API key, analytics, or third-party runtime dependencies
+## Features
 
-## Requirements
+- **Region screenshots** with offline, on-device OCR naming (`payment-form-test-failed-20260916-101300.png`)
+- **Recordings** of a full display or a selected area, with send, trim, or resize afterward
+- **Several destinations**, including a Mac or Linux machine reachable by `user@host`, a Tailscale name, or an `~/.ssh/config` alias
+- **Global shortcuts:** `⌃⌥⌘S` for a screenshot, `⌃⌥⌘V` for a recording
+- **Drag and drop:** drop any file on the camera nub, then onto a destination tile
+- **Automation URLs** for Shortcuts, Raycast, BetterTouchTool, and scripts
+- **Guided setup** that tests each destination, diagnoses SSH problems, and walks you through a first capture
+- **Stays out of the way:** a 42 px camera nub in the corner of the screen you choose, excluded from your own screenshots
 
-- macOS 13 or newer
-- Apple Command Line Tools (`xcode-select --install`)
-- A Mac or Linux destination reachable over SSH
-- Optional: Tailscale for private device addressing
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/pill.png" alt="The collapsed camera nub and the expanded pill with Shot and Vid buttons, accent colors, and recent captures"></td>
+    <td width="50%"><img src="docs/images/drop-targets.png" alt="Four drop tiles named work, gpu, nas, and ci, with a file being dragged onto one"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Hover the nub</b> for Shot, Vid, destinations, and recent captures</td>
+    <td align="center"><b>Drag any file</b> onto the nub and drop it on a machine</td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/recording-picker.png" alt="Recording picker offering each display or a selected portion"></td>
+    <td width="50%"><img src="docs/images/recording-ready.png" alt="Recording ready panel with Send, Trim, and Resize"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Record</b> a whole display or any region</td>
+    <td align="center"><b>Send, trim, or shrink</b> the recording before it goes</td>
+  </tr>
+</table>
 
-## Install from source
+## Install
 
-```bash
-git clone https://github.com/mejohnc-ft/pill-shot.git
-cd pill-shot
-./scripts/install.sh
-```
+**Requirements:** macOS 14 Sonoma or newer (Apple silicon or Intel), plus a Mac or
+Linux destination you can SSH into with a key.
 
-The installer builds `~/Applications/Shot Pill.app` and opens guided setup:
+1. Download `dotshot-<version>.dmg` from the [latest release](https://github.com/mejohnc-ft/dotshot/releases/latest).
+2. Open the DMG and drag **dotshot** to **Applications**.
+3. Open dotshot. Setup starts automatically.
 
-1. See the capture → deliver → use workflow
-2. Screen Recording permission
-3. Connect destination devices, including beginner SSH guidance
-4. Configure and test SSH destinations and writable remote folders
-5. Complete a real first capture
-6. Approve Launch at Login
-7. Choose accent, target display, corner, and inset
-8. Review shortcuts and the privacy boundary
+Releases are signed with a Developer ID and notarized by Apple, so dotshot opens
+like any other downloaded app. To build from source instead, see [Build from source](docs/INSTALL.md#build-from-source).
 
-Setup can be reopened from the gear on the expanded pill or with:
+## Set up in five minutes
 
-```bash
-open -b com.johnc.shotpill 'shotpill://settings'
-```
+Setup walks through each step and can be reopened any time from the gear on the
+expanded pill.
 
-## Configure destination devices
+1. **Allow Screen Recording** when macOS asks, then relaunch dotshot if prompted.
+2. **Make sure SSH works** from this Mac to the destination without a password:
+   ```bash
+   ssh -o BatchMode=yes you@destination true && echo ready
+   ```
+   If that fails, setup can copy the key authorization command for you. The
+   [SSH setup guide](docs/SSH_SETUP.md) covers Remote Login, keys, and Tailscale.
+3. **Add a destination** with a short name (`work`), an SSH address
+   (`you@mac-studio.local`), and a folder (`~/inbound`). Press **Test**. dotshot
+   checks the host, the key, and the folder separately, creates the folder, and
+   saves its absolute path.
+4. **Take a first capture** with `⌃⌥⌘S`. Wait for the **Sent** notification, then
+   paste the path into your agent.
 
-You do **not** need an SSH alias. Shot Pill accepts:
+<p align="center">
+  <img src="docs/images/setup-destinations.png" width="720" alt="dotshot setup: destinations with a name, SSH address, and folder, each with a Test button">
+</p>
 
-- `username@hostname.local` on a local network
-- `username@100.x.y.z` using a Tailscale IP
-- `username@device-name` using Tailscale MagicDNS
-- An existing alias from `~/.ssh/config`
+<table>
+  <tr>
+    <td width="33%"><img src="docs/images/setup-permissions.png" alt="Setup: allow Screen Recording"></td>
+    <td width="33%"><img src="docs/images/setup-connect.png" alt="Setup: enable SSH, prepare a key, and authorize it"></td>
+    <td width="33%"><img src="docs/images/setup-test.png" alt="Setup: take a first test capture"></td>
+  </tr>
+  <tr>
+    <td align="center">Permission</td>
+    <td align="center">SSH access</td>
+    <td align="center">First capture</td>
+  </tr>
+</table>
 
-The guided setup detects an existing public key, explains how to create or
-authorize one, and diagnoses host, authentication, and folder failures
-separately. Start with the complete [SSH setup guide](docs/SSH_SETUP.md) if SSH
-key authentication is new to you.
-
-Shot Pill never stores SSH passwords or private keys. Its Test button connects
-without password prompts, creates the destination folder when allowed, verifies
-that it is writable, and resolves `~/inbound` into an absolute path your agent
-can use.
-
-During setup, enter:
-
-- **Name:** a short label such as `work`, `nas`, or `ai`
-- **SSH address or alias:** normally `username@device`
-- **Destination folder:** an absolute path or `~/inbound`
-
-Destination configuration is stored locally at:
-
-```text
-~/Library/Application Support/Shot Pill/destinations.tsv
-```
-
-It is never included in the repository or app bundle.
+Every screen, in order, is in the [walkthrough](docs/WALKTHROUGH.md).
 
 ## Use
 
-| Action | Shortcut or URL |
+| Action | How |
 | --- | --- |
-| Region screenshot | `⌃⌥⌘S` |
-| Screen recording picker | `⌃⌥⌘V` |
-| Screenshot to current destination | `shotpill://image` |
-| Screenshot to a destination | `shotpill://image?dest=work` |
-| Recording picker | `shotpill://video?dest=work` |
-| Record display 2 directly | `shotpill://video?dest=work&screen=2` |
-| Record selected portion | `shotpill://video?dest=work&screen=region` |
-| Open settings | `shotpill://settings` |
+| Screenshot to the current destination | `⌃⌥⌘S`, or hover the nub and click **Shot** |
+| Recording | `⌃⌥⌘V`, or **Vid**, then pick a display or **Selected Portion**. Stop with `⌘⌃Esc`. |
+| Switch destination | Click the destination name on the expanded pill |
+| Send an existing file | Drag it onto the nub, then onto a destination tile |
+| Reopen setup | Gear on the expanded pill, or `open dotshot://settings` |
 
-After a successful transfer, Shot Pill copies the absolute remote path to the clipboard. If transfer fails, it keeps the local file and copies the local path instead.
+After a successful transfer, the clipboard holds the absolute remote path. If
+the transfer fails, dotshot keeps the file, copies its local path, and logs the
+error to `~/Shots/.dotshot.log`.
 
-Local captures and logs live in `~/Shots`.
+### Automation URLs
 
-## Build
+| URL | Effect |
+| --- | --- |
+| `dotshot://image` | Screenshot to the current destination |
+| `dotshot://image?dest=work` | Screenshot to `work` |
+| `dotshot://video?dest=work` | Recording picker |
+| `dotshot://video?dest=work&screen=2` | Record display 2 |
+| `dotshot://video?dest=work&screen=region` | Record a selected area |
+| `dotshot://settings` | Open destination settings |
+| `dotshot://setup?step=appearance` | Open setup at a step (`welcome`, `permissions`, `connect`, `destinations`, `test`, `login`, `appearance`, `done`) |
 
 ```bash
-./scripts/build.sh
+open 'dotshot://image?dest=work'
 ```
 
-Useful options:
+Links that start a recording ask for confirmation first, because any app or web
+page can open a link. Tick **Always allow links to start recordings** in that
+dialog if you trigger recordings from your own automation. A link naming a
+destination that doesn't exist is reported and captures nothing.
+
+## Where things live
+
+| What | Where |
+| --- | --- |
+| Local copies of captures | `~/Shots` |
+| Delivery log | `~/Shots/.dotshot.log` |
+| Destinations | `~/Library/Application Support/dotshot/destinations.tsv` |
+| Preferences | `defaults read com.mejohnc.dotshot` |
+
+`destinations.tsv` holds one tab-separated row per destination (name, SSH host
+or alias, remote folder). You can edit it by hand. See
+[`config/destinations.example.tsv`](config/destinations.example.tsv).
+
+## Guides and agents
+
+- Machines: [DGX Spark](https://mejohnc-ft.github.io/dotshot/spark/) · [ROCm](https://mejohnc-ft.github.io/dotshot/rocm/) · [Remote Macs and macOS VMs](https://mejohnc-ft.github.io/dotshot/mac/)
+- Agents: [Claude Code](https://mejohnc-ft.github.io/dotshot/claude/) · [Codex](https://mejohnc-ft.github.io/dotshot/codex/) · [Pi](https://mejohnc-ft.github.io/dotshot/pi/)
+- **Let your agent set it up:** [docs/AGENTS.md](docs/AGENTS.md). The [`dotshot-setup`](skills/dotshot-setup/SKILL.md) skill configures and checks destinations from the command line, and [`dotshot-inbox`](skills/dotshot-inbox/SKILL.md) helps agents on each machine find and read what you sent.
+
+The script inside the app also works from Terminal:
 
 ```bash
-./scripts/build.sh --no-launch
-./scripts/build.sh --adhoc
-./scripts/build.sh --app "$PWD/dist/Shot Pill.app" --no-launch
+DS=/Applications/dotshot.app/Contents/Resources/dotshot-capture.sh
+"$DS" add spark spark '~/inbound' && "$DS" check spark    # validate, create a private folder, save the absolute path
+"$DS" send spark ./notes.txt                              # deliver a file; the remote path is on your clipboard
 ```
 
-The source installer can create a self-signed local code-signing identity. Its purpose is identity stability: macOS Screen Recording approval can survive later local rebuilds. For polished public binary releases, use an Apple Developer ID certificate and notarization instead.
+## How it compares
+
+Other tools solve part of this, and one of them may suit you better:
+
+- [clipbridge](https://github.com/skeptrunedev/clipbridge) lets you press Ctrl+V for a clipboard image inside Claude Code or Codex on Linux hosts.
+- [clipssh](https://github.com/samuellawrentz/clipssh), [clipport](https://github.com/arihantsethia/clipport), and [claude-screenshot-uploader](https://github.com/mdrzn/claude-screenshot-uploader) upload a clipboard image or screenshot over SSH and copy the remote path. Most support several hosts.
+- The VS Code Remote-SSH image-paste extensions do the same inside the editor's terminal.
+
+dotshot goes further than getting an image across: it sends **screen recordings**
+and **any file** too, names captures after what's on screen, and lets you pick the
+machine per capture from a native pill, drop tiles, or a `dotshot://` URL. Setup
+tests each connection and says what to fix. Under the hood it's `screencapture`
+plus `scp` on purpose, so nothing new runs on your destinations.
 
 ## Privacy and security
 
-Shot Pill can read screen contents only after explicit macOS approval. Captures are saved locally and sent only through the system `scp` command to destinations you configure. It does not collect telemetry or run a receiving service.
+dotshot can read the screen only after you grant Screen Recording permission.
+Captures stay private on your Mac (`~/Shots`, mode 700) and go only to destinations
+you configure, over `scp` with key authentication, strict host-key checking, and no
+password prompts. Files arrive with private permissions, under safe unique names,
+and never overwrite anything. Names drop secret-looking words, and links that would
+start a recording ask first. dotshot has no analytics, accounts, or update checks.
+Once your agent opens a capture, the agent's model provider sees it.
 
-Review [SECURITY.md](SECURITY.md) before reporting a sensitive issue.
+[SECURITY.md](SECURITY.md) traces every copy of a capture and explains the
+protections and the remaining risks, such as prompt injection from captured content.
 
-## Uninstall
+## Development
 
 ```bash
-./scripts/uninstall.sh
+./scripts/build.sh      # build ~/Applications/dotshot.app and launch it
+./scripts/test.sh       # unit tests, capture-script tests, shellcheck
+./scripts/release.sh    # universal DMG + ZIP + checksums (see docs/RELEASING.md)
 ```
 
-The uninstaller moves the app to Trash and leaves settings and captures in place.
+See [CONTRIBUTING.md](CONTRIBUTING.md), [docs/QA.md](docs/QA.md), and
+[docs/RELEASING.md](docs/RELEASING.md). Screenshots and videos are generated from
+the real app by the scripts in `scripts/docs/` (see [Refreshing screenshots and the demo](docs/RELEASING.md#refreshing-screenshots-and-the-demo)).
 
-## Contributing
+dotshot was previously called Shot Pill. The first launch of dotshot imports Shot
+Pill's settings; see [Migrating from Shot Pill](docs/INSTALL.md#migrating-from-shot-pill).
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Shot Pill is available under the [MIT License](LICENSE).
+## License
+
+[MIT](LICENSE)

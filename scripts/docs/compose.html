@@ -1,0 +1,181 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>dotshot media composer</title>
+<!-- Rendered by compose-media.sh with headless Chrome. Select a layout with #layout; images come from ./raw/. -->
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; overflow: hidden; }
+  body {
+    font: 15px -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+    color: #eee8d5;
+    background: #00212b;
+  }
+  .stage {
+    position: relative;
+    overflow: hidden;
+    background:
+      radial-gradient(1200px 700px at 12% 8%, rgba(181, 137, 0, 0.22), transparent 60%),
+      radial-gradient(900px 600px at 95% 100%, rgba(42, 161, 152, 0.22), transparent 60%),
+      linear-gradient(160deg, #003340 0%, #002029 55%, #001820 100%);
+  }
+  .stage::after {
+    /* faint dot grid */
+    content: "";
+    position: absolute; inset: 0;
+    background-image: radial-gradient(rgba(238, 232, 213, 0.06) 1px, transparent 1.4px);
+    background-size: 22px 22px;
+    pointer-events: none;
+  }
+  .layout { display: none; }
+  .shadow { filter: drop-shadow(0 24px 48px rgba(0, 0, 0, 0.45)) drop-shadow(0 4px 10px rgba(0, 0, 0, 0.3)); }
+  .center { position: absolute; inset: 0; display: grid; place-items: center; z-index: 1; }
+  .label {
+    font: 600 13px/1 ui-monospace, "SF Mono", Menlo, monospace;
+    letter-spacing: 0.12em; text-transform: uppercase; color: rgba(238, 232, 213, 0.62);
+  }
+
+  /* hero ---------------------------------------------------------------- */
+  #hero { width: 1200px; height: 675px; }
+  #hero .browser {
+    position: absolute; left: 56px; top: 80px; width: 610px; height: 360px; z-index: 1;
+    border-radius: 14px; overflow: hidden; background: #f4f5f7;
+    box-shadow: 0 30px 70px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  }
+  .chrome-bar {
+    height: 34px; background: #e6e8eb; display: flex; align-items: center; gap: 7px; padding: 0 13px;
+  }
+  .chrome-bar i { width: 11px; height: 11px; border-radius: 50%; display: block; }
+  .chrome-bar i:nth-child(1) { background: #ff5f57; }
+  .chrome-bar i:nth-child(2) { background: #febc2e; }
+  .chrome-bar i:nth-child(3) { background: #28c840; }
+  .chrome-bar span {
+    margin-left: 14px; flex: 1; height: 20px; border-radius: 6px; background: #fff;
+    font-size: 11px; color: #6b7280; display: flex; align-items: center; padding-left: 10px;
+  }
+  #hero .browser img { width: 860px; display: block; margin: -10px 0 0 -12px; }
+  #hero .terminal {
+    position: absolute; right: 56px; top: 64px; width: 470px; z-index: 2;
+    border-radius: 12px; overflow: hidden; background: #0b1419;
+    box-shadow: 0 30px 70px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  }
+  .term-bar {
+    height: 30px; background: #16232a; display: flex; align-items: center; gap: 7px; padding: 0 12px;
+    font: 11px -apple-system, sans-serif; color: #839496;
+  }
+  .term-bar i { width: 11px; height: 11px; border-radius: 50%; display: block; background: #3b4a52; }
+  .term-bar b { margin-left: auto; margin-right: auto; font-weight: 500; transform: translateX(-24px); }
+  .term-body { padding: 16px 18px 20px; font: 13px/1.6 ui-monospace, "SF Mono", Menlo, monospace; color: #c9d1d9; }
+  .dim { color: #657b83; } .gold { color: #d4a72c; } .cyan { color: #2aa198; } .green { color: #859900; }
+  .path { color: #eee8d5; background: rgba(181, 137, 0, 0.22); border-radius: 4px; padding: 1px 4px; word-break: break-all; }
+  .caret { display: inline-block; width: 8px; height: 15px; background: #d4a72c; vertical-align: -2px; }
+  #hero .pill { position: absolute; right: 48px; bottom: 40px; width: 430px; z-index: 3; }
+  #hero .wordmark {
+    position: absolute; left: 60px; bottom: 44px; z-index: 2; display: flex; align-items: center; gap: 12px;
+    font: 700 28px/1 -apple-system, sans-serif; letter-spacing: -0.02em; color: #fdf6e3;
+  }
+  #hero .wordmark .dot { width: 30px; height: 30px; border-radius: 50%; background: #b58900; box-shadow: 0 0 0 5px rgba(181, 137, 0, 0.25); }
+  #hero .wordmark small { font: 500 15px/1.3 -apple-system, sans-serif; color: rgba(238, 232, 213, 0.72); letter-spacing: 0; margin-left: 8px; }
+
+  /* pill ---------------------------------------------------------------- */
+  #pill { width: 1200px; height: 560px; }
+  #pill .row { position: absolute; inset: 0; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 90px; }
+  #pill figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 26px; }
+  #pill .nub { width: 84px; }
+  #pill .expanded { width: 520px; }
+  #pill .arrow { font-size: 30px; color: rgba(238, 232, 213, 0.45); margin-top: -40px; }
+
+  /* single framed window ------------------------------------------------ */
+  .framed { position: relative; }
+  #drop { width: 1000px; height: 560px; }
+  #drop .grid { width: 400px; }
+  #drop .file {
+    position: absolute; z-index: 2; left: 648px; top: 118px; width: 86px; transform: rotate(-8deg);
+    filter: drop-shadow(0 14px 22px rgba(0, 0, 0, 0.5));
+  }
+  #drop .file .sheet { width: 86px; height: 104px; border-radius: 8px; background: #fdf6e3; position: relative; overflow: hidden; }
+  #drop .file .sheet span { position: absolute; left: 10px; right: 10px; height: 6px; border-radius: 3px; background: #c9bf9f; }
+  #drop .file b { display: block; text-align: center; margin-top: 8px; font: 600 12px -apple-system, sans-serif; color: #eee8d5; }
+  #drop .caption { position: absolute; z-index: 1; bottom: 38px; width: 100%; text-align: center; }
+
+  #picker { width: 1080px; height: 640px; }
+  #picker img { width: 700px; }
+  #recording-ready { width: 800px; height: 560px; }
+  .setup { width: 1040px; height: 780px; }
+  .setup img { width: 840px; }
+</style>
+
+<body>
+  <section class="layout stage" id="hero">
+    <div class="browser">
+      <div class="chrome-bar"><i></i><i></i><i></i><span>localhost:5173/settings/network</span></div>
+      <img src="raw/sample-settings.png" alt="">
+    </div>
+    <div class="terminal">
+      <div class="term-bar"><i></i><i></i><i></i><b>dev@dev-mac — claude</b></div>
+      <div class="term-body">
+        <div class="dim">~/projects/console</div>
+        <div><span class="gold">&gt;</span> Fix the overflow in
+          <span class="path">/Users/dev/inbound/network-settings-proxy-host-20260916-101400.png</span></div>
+        <br>
+        <div><span class="cyan">●</span> Reading the screenshot…</div>
+        <div><span class="cyan">●</span> The proxy host value escapes its row because the</div>
+        <div>&nbsp;&nbsp;field uses <span class="green">white-space: nowrap</span> with a fixed width.</div>
+        <div><span class="cyan">●</span> Editing <span class="gold">src/settings/NetworkRow.tsx</span> <span class="caret"></span></div>
+      </div>
+    </div>
+    <img class="pill shadow" src="raw/pill-expanded.png" alt="">
+    <div class="wordmark"><span class="dot"></span>dotshot<small>Capture here.<br>Let your agents use it there.</small></div>
+  </section>
+
+  <section class="layout stage" id="pill">
+    <div class="row">
+      <figure><img class="nub shadow" src="raw/pill-collapsed.png" alt=""><span class="label">Idle</span></figure>
+      <div class="arrow">→</div>
+      <figure><img class="expanded shadow" src="raw/pill-expanded.png" alt=""><span class="label">Hover</span></figure>
+    </div>
+  </section>
+
+  <section class="layout stage" id="drop">
+    <div class="center"><img class="grid shadow" src="raw/pill-drop.png" alt=""></div>
+    <div class="file"><div class="sheet"><span style="top:30px"></span><span style="top:46px"></span><span style="top:62px;right:26px"></span></div><b>trace.log</b></div>
+    <div class="caption label">Drop a file on a destination</div>
+  </section>
+
+  <section class="layout stage" id="picker">
+    <div class="center"><img class="shadow" src="raw/recording-picker.png" alt=""></div>
+  </section>
+
+  <section class="layout stage setup" id="setup-welcome">
+    <div class="center"><img class="shadow" src="raw/setup-welcome.png" alt=""></div>
+  </section>
+  <section class="layout stage setup" id="setup-connect">
+    <div class="center"><img class="shadow" src="raw/setup-connect.png" alt=""></div>
+  </section>
+  <section class="layout stage setup" id="setup-destinations">
+    <div class="center"><img class="shadow" src="raw/setup-destinations.png" alt=""></div>
+  </section>
+
+  <section class="layout stage setup" id="setup-permissions">
+    <div class="center"><img class="shadow" src="raw/setup-permissions.png" alt=""></div>
+  </section>
+  <section class="layout stage setup" id="setup-test">
+    <div class="center"><img class="shadow" src="raw/setup-test.png" alt=""></div>
+  </section>
+  <section class="layout stage setup" id="setup-login">
+    <div class="center"><img class="shadow" src="raw/setup-login.png" alt=""></div>
+  </section>
+  <section class="layout stage setup" id="setup-appearance">
+    <div class="center"><img class="shadow" src="raw/setup-appearance.png" alt=""></div>
+  </section>
+  <section class="layout stage setup" id="setup-done">
+    <div class="center"><img class="shadow" src="raw/setup-done.png" alt=""></div>
+  </section>
+  <section class="layout stage" id="recording-ready">
+    <div class="center"><img class="shadow" src="raw/recording-ready.png" alt="" style="width:520px"></div>
+  </section>
+
+  <script>
+    const el = document.getElementById(location.hash.slice(1) || "hero");
+    el.style.display = "block";
+  </script>
+</body>

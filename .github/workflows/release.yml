@@ -1,0 +1,126 @@
+name: release
+
+# Push a tag like v1.0.0 to test, build, sign, notarize, and draft a GitHub Release.
+# Signing and notarization secrets live in the protected "release" environment (tags v* only,
+# required reviewer), so only the sign job can read them. Tests run earlier in a job without
+# secrets, and only the publish job can write to the repository.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - name: Check tag matches Info.plist
+        run: |
+          plist_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Resources/Info.plist)"
+          [ "v$plist_version" = "$GITHUB_REF_NAME" ] || { echo "Tag $GITHUB_REF_NAME does not match Info.plist $plist_version"; exit 1; }
+
+      - name: Install shellcheck
+        run: brew install shellcheck
+
+      - name: Tests
+        run: ./scripts/test.sh
+
+  sign:
+    needs: test
+    runs-on: macos-15
+    environment: release
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - name: Import Developer ID certificate
+        env:
+          CERTIFICATE_P12_BASE64: ${{ secrets.DEVELOPER_ID_P12_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+          SIGNING_IDENTITY: ${{ secrets.DEVELOPER_ID_IDENTITY }}
+        run: |
+          [ -n "$CERTIFICATE_P12_BASE64" ] || { echo "Missing Developer ID secrets in the release environment." >&2; exit 1; }
+          keychain="$RUNNER_TEMP/release.keychain-db"
+          keychain_password="$(openssl rand -hex 24)"
+          echo "$CERTIFICATE_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 3600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          # -x: the private key can't be exported; -T: only codesign may use it without a prompt.
+          security import "$RUNNER_TEMP/cert.p12" -P "$CERTIFICATE_PASSWORD" -x -T /usr/bin/codesign -f pkcs12 -k "$keychain"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain" >/dev/null
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          rm -f "$RUNNER_TEMP/cert.p12"
+          echo "DOTSHOT_SIGNING_IDENTITY=$SIGNING_IDENTITY" >> "$GITHUB_ENV"
+
+      - name: Prepare notarization key
+        env:
+          NOTARY_KEY_P8: ${{ secrets.NOTARY_API_KEY_P8 }}
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_API_KEY_ID }}
+          NOTARY_ISSUER: ${{ secrets.NOTARY_API_ISSUER }}
+        run: |
+          [ -n "$NOTARY_KEY_P8" ] || { echo "Missing notarization secrets in the release environment." >&2; exit 1; }
+          umask 077
+          printf '%s' "$NOTARY_KEY_P8" > "$RUNNER_TEMP/notary.p8"
+          {
+            echo "DOTSHOT_NOTARY_KEY=$RUNNER_TEMP/notary.p8"
+            echo "DOTSHOT_NOTARY_KEY_ID=$NOTARY_KEY_ID"
+            echo "DOTSHOT_NOTARY_ISSUER=$NOTARY_ISSUER"
+          } >> "$GITHUB_ENV"
+
+      - name: Build, sign, and notarize
+        env:
+          DOTSHOT_SKIP_TESTS: "1"
+          DOTSHOT_REQUIRE_NOTARIZATION: "1"
+        run: ./scripts/release.sh
+
+      - name: Remove signing material
+        if: always()
+        run: |
+          security delete-keychain "$RUNNER_TEMP/release.keychain-db" 2>/dev/null || true
+          rm -f "$RUNNER_TEMP/notary.p8" "$RUNNER_TEMP/cert.p12"
+
+      - name: Upload release files
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: dotshot-release
+          if-no-files-found: error
+          path: |
+            build/release/*/dotshot-*.dmg
+            build/release/*/dotshot-*.zip
+            build/release/*/SHA256SUMS.txt
+            build/release/*/SIGNING.txt
+            build/release/*/dotshot.rb
+
+  publish:
+    needs: sign
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: dotshot-release
+          path: build/release
+
+      - name: Draft GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          dir="build/release/$version"
+          notes="$RUNNER_TEMP/notes.md"
+          awk -v v="$version" '$0 ~ "^## \\[?"v"\\]?" { found = 1; next } found && /^## / { exit } found { print }' CHANGELOG.md > "$notes"
+          printf '\n---\n\n**Build:** %s\n\n```\n%s\n```\n' "$(cat "$dir/SIGNING.txt")" "$(cat "$dir/SHA256SUMS.txt")" >> "$notes"
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft --title "dotshot $version" --notes-file "$notes" \
+            "$dir/dotshot-$version.dmg" "$dir/dotshot-$version.zip" "$dir/SHA256SUMS.txt" "$dir/dotshot.rb"

@@ -1,0 +1,181 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>dotshot demo scene</title>
+<!--
+  One frame of the README/site demo, selected with #t=<seconds>. make-demo.sh renders every frame.
+  dotshot UI comes from real window captures in ./raw/; the desktop, notification, and terminal are staged.
+-->
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 960px; height: 540px; overflow: hidden; }
+  body { font: 13px -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; }
+  .desk {
+    position: absolute; inset: 0; overflow: hidden;
+    background:
+      radial-gradient(700px 420px at 10% 0%, rgba(181, 137, 0, 0.25), transparent 60%),
+      radial-gradient(600px 400px at 100% 100%, rgba(42, 161, 152, 0.25), transparent 60%),
+      linear-gradient(160deg, #003340 0%, #002029 60%, #001820 100%);
+  }
+  .menubar {
+    position: absolute; left: 0; right: 0; top: 0; height: 22px; background: rgba(0, 20, 26, 0.55);
+    backdrop-filter: blur(10px); color: #eee8d5; font-size: 12px; display: flex; align-items: center; gap: 16px; padding: 0 14px;
+  }
+  .menubar b { font-weight: 600; } .menubar span:last-child { margin-left: auto; opacity: 0.8; }
+  .window { position: absolute; border-radius: 11px; overflow: hidden; box-shadow: 0 22px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08); }
+  .browser { left: 40px; top: 48px; width: 560px; height: 400px; background: #f4f5f7; }
+  .bar { height: 28px; display: flex; align-items: center; gap: 6px; padding: 0 11px; }
+  .bar i { width: 10px; height: 10px; border-radius: 50%; display: block; }
+  .browser .bar { background: #e6e8eb; }
+  .browser .bar i:nth-child(1) { background: #ff5f57; } .browser .bar i:nth-child(2) { background: #febc2e; } .browser .bar i:nth-child(3) { background: #28c840; }
+  .browser .bar span { margin-left: 10px; flex: 1; height: 17px; border-radius: 5px; background: #fff; color: #6b7280; font-size: 10px; display: flex; align-items: center; padding-left: 8px; }
+  .browser img { width: 800px; display: block; }
+
+  .terminal { left: 300px; top: 90px; width: 620px; height: 300px; background: #0b1419; }
+  .terminal .bar { background: #16232a; color: #839496; font-size: 11px; }
+  .terminal .bar i { background: #3b4a52; }
+  .terminal .bar b { font-weight: 500; margin: 0 auto; transform: translateX(-20px); }
+  .term { padding: 14px 16px; font: 12.5px/1.65 ui-monospace, "SF Mono", Menlo, monospace; color: #c9d1d9; }
+  .dim { color: #657b83; } .gold { color: #d4a72c; } .cyan { color: #2aa198; } .green { color: #859900; }
+  .path { color: #fdf6e3; background: rgba(181, 137, 0, 0.3); border-radius: 3px; padding: 0 3px; }
+  .caret { display: inline-block; width: 7px; height: 14px; background: #d4a72c; vertical-align: -2px; }
+  .line { opacity: 0; }
+
+  .pill { position: absolute; right: 18px; bottom: 16px; width: 380px; transform-origin: 100% 100%; }
+  .nub { position: absolute; right: 18px; bottom: 16px; width: 56px; }
+
+  .dimmer { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.18); opacity: 0; }
+  .selection { position: absolute; border: 1px solid rgba(255, 255, 255, 0.9); background: transparent; box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.28); display: none; }
+  .selection em { position: absolute; right: -4px; bottom: -22px; transform: translateX(100%); font: 600 10px ui-monospace, Menlo, monospace; color: #fff; background: rgba(0,0,0,0.55); padding: 2px 5px; border-radius: 4px; font-style: normal; }
+  .flash { position: absolute; inset: 0; background: #fff; opacity: 0; }
+
+  .notification {
+    position: absolute; right: 14px; top: 32px; width: 350px; padding: 11px 13px; border-radius: 16px;
+    display: flex; gap: 10px; align-items: flex-start;
+    background: rgba(40, 44, 48, 0.86); backdrop-filter: blur(20px); color: #f2f2f2;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4), 0 0 0 0.5px rgba(255, 255, 255, 0.2);
+  }
+  .notification img { width: 34px; height: 34px; }
+  .notification b { display: block; font-size: 13px; margin-bottom: 2px; }
+  .notification span { font-size: 12px; color: #d0d0d0; line-height: 1.35; word-break: break-all; }
+  .notification small { position: absolute; right: 13px; top: 11px; font-size: 11px; color: #9a9a9a; }
+
+  .cursor { position: absolute; width: 18px; height: 26px; pointer-events: none; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.35)); }
+  .crosshair { position: absolute; width: 30px; height: 30px; margin: -15px 0 0 -15px; display: none; }
+  .caption {
+    position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); white-space: nowrap;
+    font: 600 12px/1 -apple-system, sans-serif; letter-spacing: 0.02em; color: #fdf6e3;
+    background: rgba(0, 20, 26, 0.78); padding: 8px 13px; border-radius: 999px; box-shadow: 0 0 0 1px rgba(181, 137, 0, 0.5);
+  }
+  .caption kbd { font: inherit; color: #d4a72c; }
+</style>
+
+<div class="desk">
+  <div class="menubar"><b>Safari</b><span>File</span><span>Edit</span><span>View</span><span>Wed 10:14</span></div>
+
+  <div class="window browser">
+    <div class="bar"><i></i><i></i><i></i><span>localhost:5173/settings/network</span></div>
+    <img src="raw/sample-settings.png" alt="">
+  </div>
+
+  <div class="window terminal" id="terminal">
+    <div class="bar"><i></i><i></i><i></i><b>dev@dev-mac — claude</b></div>
+    <div class="term">
+      <div class="dim">~/projects/console</div>
+      <div><span class="gold">&gt;</span> <span id="typed"></span><span class="path" id="pasted"></span><span class="caret" id="caret"></span></div>
+      <br>
+      <div class="line" id="l1"><span class="cyan">●</span> Read network-settings-proxy-host-20260916-101400.png</div>
+      <div class="line" id="l2"><span class="cyan">●</span> The proxy host value escapes its row: the field uses</div>
+      <div class="line" id="l3">&nbsp;&nbsp;<span class="green">white-space: nowrap</span> inside a fixed 260px column.</div>
+      <div class="line" id="l4"><span class="cyan">●</span> Update <span class="gold">src/settings/NetworkRow.tsx</span></div>
+      <div class="line" id="l5">&nbsp;&nbsp;<span class="green">+ className="min-w-0 truncate" title={host}</span></div>
+    </div>
+  </div>
+
+  <img class="nub" id="nub" src="raw/pill-collapsed.png" alt="">
+  <img class="pill" id="pill" src="raw/pill-expanded.png" alt="">
+
+  <div class="dimmer" id="dimmer"></div>
+  <div class="selection" id="selection"><em id="dims"></em></div>
+  <div class="flash" id="flash"></div>
+
+  <div class="notification" id="notification">
+    <img src="raw/app-icon.png" alt="">
+    <div><b>Sent to work</b><span>/Users/dev/inbound/network-settings-proxy-host-20260916-101400.png (path copied)</span></div>
+    <small>now</small>
+  </div>
+
+  <svg class="cursor" id="cursor" viewBox="0 0 18 26"><path d="M1 1 L1 20 L6 15.5 L9.5 23.5 L13 22 L9.5 14 L16 14 Z" fill="#000" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg>
+  <svg class="crosshair" id="crosshair" viewBox="0 0 30 30"><path d="M15 2 V28 M2 15 H28" stroke="#fff" stroke-width="2.4"/><path d="M15 2 V28 M2 15 H28" stroke="#000" stroke-width="1"/></svg>
+
+  <div class="caption" id="caption"></div>
+</div>
+
+<script>
+  const t = parseFloat((location.hash.match(/t=([\d.]+)/) || [0, "0"])[1]);
+  const $ = (id) => document.getElementById(id);
+  const clamp = (x) => Math.max(0, Math.min(1, x));
+  const ease = (x) => { x = clamp(x); return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
+  const span = (a, b) => ease((t - a) / (b - a));
+  const lerp = (a, b, k) => a + (b - a) * k;
+  const move = (points) => {  // [[time, x, y], ...]
+    for (let i = 1; i < points.length; i++) {
+      if (t <= points[i][0]) {
+        const k = span(points[i - 1][0], points[i][0]);
+        return [lerp(points[i - 1][1], points[i][1], k), lerp(points[i - 1][2], points[i][2], k)];
+      }
+    }
+    return points[points.length - 1].slice(1);
+  };
+
+  // Pill: expands on hover, collapses when the capture starts.
+  const pillIn = span(1.15, 1.45) * (1 - span(2.55, 2.75));
+  $("pill").style.opacity = pillIn;
+  $("pill").style.transform = `scale(${lerp(0.35, 1, pillIn)})`;
+  $("nub").style.opacity = 1 - pillIn;
+  const pressed = t > 2.3 && t < 2.5;
+  $("pill").style.filter = pressed ? "brightness(0.88)" : "none";
+
+  // Cursor path: toward the nub, onto Shot, then crosshair drag over the proxy-host row.
+  const [cx, cy] = move([[0, 420, 300], [1.1, 905, 490], [1.5, 905, 490], [2.2, 662, 372], [2.6, 662, 372], [2.9, 58, 196], [3.0, 58, 196], [3.9, 594, 246], [8.5, 594, 246]]);
+  const selecting = t >= 2.75 && t < 4.05;
+  $("cursor").style.left = cx + "px";
+  $("cursor").style.top = cy + "px";
+  $("cursor").style.display = selecting || t >= 6.2 ? "none" : "block";
+  $("crosshair").style.display = selecting ? "block" : "none";
+  $("crosshair").style.left = cx + "px";
+  $("crosshair").style.top = cy + "px";
+  $("dimmer").style.opacity = selecting && t < 3.0 ? 1 : 0;
+  if (t >= 3.0 && t < 4.05) {
+    const sel = $("selection");
+    sel.style.display = "block";
+    sel.style.left = "58px"; sel.style.top = "196px";
+    sel.style.width = (cx - 58) + "px"; sel.style.height = (cy - 196) + "px";
+    $("dims").textContent = `${Math.round((cx - 58) * 2)} × ${Math.round((cy - 196) * 2)}`;
+  }
+  $("flash").style.opacity = t >= 4.05 && t < 4.35 ? 0.35 * (1 - span(4.05, 4.35)) : 0;
+
+  // Notification slides in, then out when the agent pane takes over.
+  const note = span(4.5, 4.85) * (1 - span(6.9, 7.2));
+  $("notification").style.opacity = note;
+  $("notification").style.transform = `translateX(${lerp(380, 0, note)}px)`;
+
+  // Agent pane: appears, prompt is typed, path pasted, response streams.
+  const term = span(5.9, 6.3);
+  $("terminal").style.opacity = term;
+  $("terminal").style.transform = `translateY(${lerp(18, 0, term)}px) scale(${lerp(0.98, 1, term)})`;
+  const prompt = "Fix the overflow in ";
+  $("typed").textContent = prompt.slice(0, Math.floor(clamp((t - 6.4) / 1.0) * prompt.length));
+  $("pasted").textContent = t >= 7.7 ? "/Users/dev/inbound/network-settings-proxy-host-20260916-101400.png" : "";
+  $("pasted").style.display = t >= 7.7 ? "inline" : "none";
+  $("caret").style.visibility = t < 8.4 && Math.floor(t * 2.5) % 2 === 0 ? "hidden" : "visible";
+  ["l1", "l2", "l3", "l4", "l5"].forEach((id, i) => { $(id).style.opacity = span(8.6 + i * 0.45, 8.85 + i * 0.45); });
+
+  // Captions narrate the three steps.
+  const caption = t < 2.75 ? "Hover the nub · click <kbd>Shot</kbd> (or press <kbd>⌃⌥⌘S</kbd>)"
+    : t < 4.4 ? "Drag over what your agent should see"
+    : t < 6.3 ? "dotshot names it, sends it over SSH, and copies the remote path"
+    : "Paste the path into your agent";
+  $("caption").innerHTML = caption;
+  $("caption").style.bottom = t >= 5.9 ? "24px" : "18px";
+  $("caption").style.left = t < 2.75 ? "36%" : "50%";
+</script>
