@@ -9,7 +9,7 @@ cask "dotshot" do
   desc "Send screenshots and recordings to SSH machines and copy the remote path for agents"
   homepage "https://mejohnc-ft.github.io/dotshot/"
 
-  depends_on macos: ">= :sonoma"
+  depends_on macos: :sonoma
 
   app "dotshot.app"
 
